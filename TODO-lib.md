@@ -63,5 +63,5 @@ existe no host está em `host/renderer_api.hpp` (contexto, arquivos do mapa, cam
 ## Build
 
 - [x] `Makefile`: `make sdl GLR=1 GLR_DIR=<include> GLR_LIB="<.a e o que ele precisar>"` (mudar
-      essas variáveis recompila o que elas afetam, pelo `build/sdl/flags`; funciona com `-j`). Sem `GLR`, o `terep2`
+      essas variáveis recompila o que elas afetam, pelo `build/sdl/flags`; funciona com `-j`). Sem `GLR`, o `terep2vibed`
       compila sem dependência nova (`GL_LIBS`: `-lGL` no Linux, `-lopengl32` no Windows).

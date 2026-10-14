@@ -70,8 +70,8 @@ build/imgui/%.o: $(IMGUI)/%.cpp | build/imgui/backends $(IMGUI)/imgui.h
 build/opl3.o: $(OPL3)/opl3.c | build $(OPL3)/opl3.h
 	$(CC) -O2 $(DEPFLAGS) -c -o $@ $<
 
-sdl: terep2
-terep2: $(GAME_OBJ) $(HOST_OBJ) $(SDL_OBJ) $(IMGUI_OBJ) build/opl3.o build/sdl/flags
+sdl: terep2vibed
+terep2vibed: $(GAME_OBJ) $(HOST_OBJ) $(SDL_OBJ) $(IMGUI_OBJ) build/opl3.o build/sdl/flags
 	$(CXX) $(CXXFLAGS) -o $@ $(GAME_OBJ) $(HOST_OBJ) $(SDL_OBJ) $(IMGUI_OBJ) build/opl3.o \
 		$(GLR_LIB) $(shell sdl2-config --libs) $(GL_LIBS) -lm
 
@@ -79,7 +79,7 @@ test: terep2-headless
 	sh tests/run_tests.sh
 
 clean:
-	rm -f terep2 terep2-headless
+	rm -f terep2vibed terep2-headless
 	rm -rf build/game build/host build/test build/sdl build/imgui build/opl3.o build/opl3.d
 
 -include $(wildcard build/*/*.d build/*.d build/imgui/backends/*.d)

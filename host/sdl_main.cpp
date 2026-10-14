@@ -2,7 +2,7 @@
  * SDL2 host: a window, the keyboard and the original timing (physics at
  * 120 Hz, display at 60 Hz, as in the Win16 port).
  *
- *   terep2 [-s scale] [-E option]... [-n] [-m] [-r renderer] [mapdir]
+ *   terep2vibed [-s scale] [-E option]... [-n] [-m] [-r renderer] [mapdir]
  *
  * Without mapdir a chooser opens first (launcher.cpp), starting in the
  * current directory, with the scale and the extra options as given here.

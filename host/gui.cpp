@@ -23,7 +23,7 @@ SDL_Window *gui_open(int w, int h)
 #endif
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);     // the external renderer needs it
-    window = SDL_CreateWindow("Terep2", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, w, h,
+    window = SDL_CreateWindow("Terep2 vibe code edition", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, w, h,
                               SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
     if (!window || !(context = SDL_GL_CreateContext(window))) {
         fprintf(stderr, "SDL: %s\n", SDL_GetError());

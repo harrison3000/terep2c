@@ -1,8 +1,9 @@
 # Build outputs
-/terep2
+/terep2vibed
 /terep2-headless
 *.o
 /build/
+*.exe
 
 # Oracle outputs (tools/build_oracle.sh, tools/asm_oracle/build.sh)
 tools/asm_oracle/out/

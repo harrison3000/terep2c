@@ -16,18 +16,18 @@ that corrupts the title) and a crash of the original that the port does not repr
 ## Building and running
 
 ```sh
-git submodule update --init   # Dear ImGui and Nuked-OPL3 (host/imgui, host/Nuked-OPL3), for terep2
+git submodule update --init   # Dear ImGui and Nuked-OPL3 (host/imgui, host/Nuked-OPL3), for terep2vibed
 make            # terep2-headless: test host, no dependencies
-make sdl        # terep2: playable SDL2 + OpenGL 3.3 version (needs libsdl2-dev, OpenGL and the submodules)
+make sdl        # terep2vibed: playable SDL2 + OpenGL 3.3 version (needs libsdl2-dev, OpenGL and the submodules)
 make test       # runs the recorded scenarios and compares them with the reference
 make -j8 all sdl  # in parallel: each source is its own object in build/, rebuilt when its headers change
-./terep2        # opens the map chooser, starting in the current directory
-./terep2 data/Asphalt
-./terep2 -s 4     # renders at 1280x800 (scale 1 to 8)
-./terep2 -E fix-ice-bug  # turns on an extra option (-E all: every one), see below
-./terep2 -n       # (--no-sound) no sound: the AdLib emulator is not even started
-./terep2 -m       # (--minimap) the map and the cars in the bottom right corner
-./terep2 -r opengl  # (--renderer) the external OpenGL renderer, if built in (see below)
+./terep2vibed       # opens the map chooser, starting in the current directory
+./terep2vibed data/Asphalt
+./terep2vibed -s 4    # renders at 1280x800 (scale 1 to 8)
+./terep2vibed -E fix-ice-bug # turns on an extra option (-E all: every one), see below
+./terep2vibed -n      # (--no-sound) no sound: the AdLib emulator is not even started
+./terep2vibed -m      # (--minimap) the map and the cars in the bottom right corner
+./terep2vibed -r opengl # (--renderer) the external OpenGL renderer, if built in (see below)
 ```
 
 C++17 with GNU extensions (`__attribute__((packed))`, `-fwrapv` and `#embed`), so it builds with
@@ -69,7 +69,7 @@ its reference point is; x is to the right and y down, so a camera turned to yaw 
 minimap. It is drawn over the game's picture through ImGui (`host/minimap.cpp`), so the
 game's picture and the tests do not change.
 
-Without a map directory, `terep2` first opens a map chooser (Dear ImGui): the directories
+Without a map directory, `terep2vibed` first opens a map chooser (Dear ImGui): the directories
 on the left, starting in the current one (`[map]` marks those with a `map.pcx` and a
 `col.pcx`); on the right a preview of the selected map, its terrain turning, drawn with the
 Comanche "voxel space" technique from `map.pcx` (heights) and `col.pcx` (colour of each cell
