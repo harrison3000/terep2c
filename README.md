@@ -32,7 +32,7 @@ make coverage REPLAY="rec/dir data/Map"  # the same for one recording only
 ./terep2vibed -r opengl # (--renderer) the external OpenGL renderer, if built in (see below)
 ```
 
-C++17 with GNU extensions (`__attribute__((packed))`, `-fwrapv` and `#embed`), so it builds with
+C++17 with GNU extensions (`__attribute__((packed))` for the PCX header, `-fwrapv` and `#embed`), so it builds with
 g++ 15+ or clang++ 19+. Tested on Linux x86-64 with both. The code does not depend on pointer
 size, but it has not been tested on 32 bits. Physics runs at 120 Hz and the display at 60 Hz, as
 in the Win16 port. The window opens at the size of the picture at the chosen scale (`-s`),
@@ -199,20 +199,16 @@ no exceptions, no inheritance):
 - `#pragma once` in every header; the data segment structs are trivially copyable, with no
   constructors.
 
-One rule that matters: **the structures that live in the data segment are `packed`** (the layout
-has to match the original segment) and C++ does not allow binding a reference to a field of a
-packed struct (`int &x = G->gravity` does not compile). In those cases the code uses a copy and
-writes it back, or a pointer. Calling a method on a packed field works normally. The cars
-(`Car`, `CarVertex`, `CarSpring`) and the value types (`Vec3`, `Coord`, `Pos`, `Angle`, `Q15`)
-are ordinary structs.
+The structures that lived in the data segment used to be `packed`, to keep the original layout;
+they are ordinary structs now (only `PcxHeader`, a file format, is still packed). Some code
+still uses a copy and writes it back, or a pointer, where a reference would do now.
 
 ### Why there is still a "data segment"
 
-The original keeps everything in one 64 KB segment: the font's offset table wraps around in 16
-bits, the file names are found by offset and the jump bug used to write into the title. So the
-global state is still a `struct DataSeg` with the original layout, but every field has a name and
-a type (`G->gravity`, `G->chase_cam[1]`...). The remaining offset accesses (`ds_ptr`) are where
-the original really does address arithmetic: the font, the file name tables, the smoke quads.
+The original keeps everything in one 64 KB segment, addressed by offsets. The global state is
+still a `struct DataSeg` (`G->gravity`, `G->chase_cam[1]`...), generated from `src/dataseg.def`,
+which keeps the original offsets as documentation; it is being split by subject. Nothing
+addresses it by offset any more.
 The asm's scratch variables became local variables. What lives outside the segment: the cars,
 the keyboard (`keys`), the image segments (heightmap, colour map, textures, screen, each car's
 texture) and the host.
@@ -234,8 +230,7 @@ and hull tables in `physics.cpp`, the sound patches in `sound.cpp`, the smoke qu
 `scene.cpp`, and the sine and atan tables computed in `math.cpp` (the atan table with a slightly
 wrong π, 3.141688765, which gives exactly the original's). `dataseg_init()` only sets the
 initial state that is still in the segment. The original's scratch variables (kept in locals
-here), the cars' pool, the scanline tables and the DOS version's leftovers are gone, and their
-offsets are padding. Until then the segment came out byte for byte identical to the original,
+here), the cars' pool, the scanline tables and the DOS version's leftovers are gone. Until then the segment came out byte for byte identical to the original,
 which the old tests compared with the asm (see Verification).
 
 ## Verification

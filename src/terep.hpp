@@ -4,10 +4,10 @@
  * C++ reconstruction of the MS-DOS demo, from the disassembly in reasm/.
  * Original function addresses are kept in comments ("orig 1000:xxxx").
  *
- * Style: plain C++ ("C with classes").  The structures that live in the
- * data segment are packed PODs with exactly the original layout, because
- * the segment is a byte image addressed by 16-bit offsets; the cars are
- * ordinary structures read from their files.  Methods and operators are
+ * Style: plain C++ ("C with classes").  The game state is still mostly in
+ * the original's data segment (struct DataSeg, from dataseg.def), being
+ * split by subject; the cars are structures read from their files.
+ * Methods and operators are
  * used where they make the arithmetic readable; everything else stays as
  * free functions.
  */
@@ -75,16 +75,16 @@ struct Pos {
  * Small structures that live inside the data segment
  * ------------------------------------------------------------------------- */
 
-struct PACKED Angles {              /* an orientation, applied roll, pitch, yaw (see build_matrix) */
+struct Angles {              /* an orientation, applied roll, pitch, yaw (see build_matrix) */
     Angle roll, pitch, yaw;
 };
 
-struct PACKED ChaseCam {            /* state of the "follow" cameras (F3/F4/F5) */
+struct ChaseCam {            /* state of the "follow" cameras (F3/F4/F5) */
     Pos   pos;
     Angle yaw, pitch, roll;
 };
 
-struct PACKED Particle {            /* smoke puffs, sparks and ice chips */
+struct Particle {            /* smoke puffs, sparks and ice chips */
     Pos     pos;
     Vec3    vel;
     int16_t life;                   /* counts down by 2 per tick */
@@ -93,37 +93,37 @@ struct PACKED Particle {            /* smoke puffs, sparks and ice chips */
     static constexpr int16_t ICE_CHIP = 0x0f, DUST = 1;
 };
 
-struct PACKED ProjVertex {          /* a point transformed to camera space */
+struct ProjVertex {          /* a point transformed to camera space */
     int16_t x, y, z;                /* camera space: y is depth */
     int16_t sx, sy;                 /* screen position, valid when y >= near_clip */
 };
 
-struct PACKED PolyVertex {          /* polygon vertex fed to the rasterisers */
+struct PolyVertex {          /* polygon vertex fed to the rasterisers */
     int16_t  sx, sy;
     uint16_t a, b;                  /* attributes: u/v (texture) or shade */
 };
 
 /* A polygon: vertex count followed by the vertices (the clippers write one
  * extra vertex past the last one while working). */
-struct PACKED PolyBuf {
+struct PolyBuf {
     uint16_t   count;
     PolyVertex v[10];
 };
 
-struct PACKED ScanEdge {
+struct ScanEdge {
     int16_t left, right;
 };
 
-struct PACKED Point2 {
+struct Point2 {
     int16_t x, y;
 };
 
-struct PACKED PointBuf {
+struct PointBuf {
     uint16_t count;
     Point2   v[10];
 };
 
-struct PACKED SpriteQuad {          /* camera-facing textured square (smoke; model opcode 9) */
+struct SpriteQuad {          /* camera-facing textured square (smoke; model opcode 9) */
     int16_t  size;                  /* half the side, before dividing by the depth */
     uint32_t uv[4];                 /* corner texture coordinates, v << 16 | u */
 };
@@ -261,7 +261,6 @@ constexpr size_t SPRING = 0x0e;     /* one CarSpring */
 constexpr size_t MAX_SIZE = 10000;  /* the original reads at most this much */
 }
 
-static_assert(sizeof(Particle) == 0x1c, "Particle");
 
 /* ---------------------------------------------------------------------------
  * Global state
@@ -275,8 +274,6 @@ extern uint8_t keys[128];           /* [0] = last scancode, [sc] bit 7 clear whi
 uint8_t *seg_ptr(uint16_t handle);
 int      seg_alloc(uint16_t paragraphs, uint16_t *handle);
 
-inline uint8_t *ds_ptr(uint16_t ofs) { return reinterpret_cast<uint8_t *>(G) + ofs; }
-inline uint16_t ds_ofs(const void *p) { return (uint16_t)(static_cast<const uint8_t *>(p) - reinterpret_cast<const uint8_t *>(G)); }
 
 constexpr int MAX_CARS = 5;
 extern Car cars[MAX_CARS];          /* G->num_cars of them are loaded */

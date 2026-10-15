@@ -6,7 +6,7 @@
 #   make -j8 ...    in parallel: every file is its own object in build/
 CXX      ?= c++
 CXXFLAGS ?= -O2 -g
-CXXFLAGS += -std=gnu++17 -fwrapv -Wall -Wno-address-of-packed-member -Wno-unused-result
+CXXFLAGS += -std=gnu++17 -fwrapv -Wall -Wno-unused-result
 DEPFLAGS  = -MMD -MP                    # header (and #embed) dependencies, in the .d files
 
 GAME     := $(wildcard src/*.cpp)
@@ -85,7 +85,7 @@ test: terep2-headless
 COV_CXX       ?= clang++
 LLVM_PROFDATA ?= llvm-profdata
 LLVM_COV      ?= llvm-cov
-COV_FLAGS     := -O0 -g -std=gnu++17 -fwrapv -Wno-address-of-packed-member -fprofile-instr-generate -fcoverage-mapping
+COV_FLAGS     := -O0 -g -std=gnu++17 -fwrapv -fprofile-instr-generate -fcoverage-mapping
 COV_OBJ       := $(patsubst build/%,build/cov/%,$(GAME_OBJ) $(HOST_OBJ) $(TEST_OBJ))
 COV_RUN       := LLVM_PROFILE_FILE=$(CURDIR)/build/cov/prof/%p.profraw
 COV_SHOW      := build/cov/terep2-headless -instr-profile=build/cov/all.profdata -ignore-filename-regex='host'

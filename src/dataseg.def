@@ -1,8 +1,9 @@
 ; Layout of the original 64 KB data segment (memdumps/data.bin + runtime state).
 ; OFFSET TYPE NAME[COUNT] ; comment
-; Only what the port uses is listed; the holes are padding.  What was there in
-; the original (scratch variables kept in locals here, the cars' pool, the
-; scanline tables, leftovers of the DOS version) is in the git history of this file.
+; Only what the port uses is listed, in a plain struct: the offsets are
+; documentation now.  What else was there in the original (scratch variables
+; kept in locals here, the cars' pool, the scanline tables, leftovers of the
+; DOS version, constant tables) is in the git history of this file.
 
 0x006a int32_t  gravity                   ; added to every vertex's vz each tick ([ and ] change it)
 0x006e uint8_t  sim_running               ; set to 1 once loading succeeded
@@ -19,14 +20,13 @@
 0x011c int16_t  chase_height              ; numpad +/-
 0x011e int16_t  chase_distance            ; numpad / and *
 0x0120 int16_t  near_clip                 ; points closer than this are not projected
-0x0126 ProjVertex car_proj[100]           ; car vertices transformed to camera space
-0x050e uint8_t  car_uv_table[0xc8]        ; texture coordinates used by model opcode 7
+0x0126 ProjVertex car_proj[120]           ; car vertices transformed to camera space (the last 20 were car_uv_table)
 0x05f5 int16_t  fog_start                 ; terrain farther than this is flat-shaded (F10 toggles)
 0x05f7 int16_t  yaw_sin7                  ; sin(yaw) >> 7
 0x05f9 int16_t  yaw_cos7                  ; cos(yaw) >> 7
 0x05fb uint8_t  terrain_swap_xy           ; terrain is traversed column-major
 0x05ff ProjVertex terrain_rows[2][256]    ; two rows of projected terrain grid points (ping-pong)
-0x19ff uint16_t terrain_row_cur           ; byte offset (0 or 0xa00) of the row being filled
+0x19ff uint16_t terrain_row_cur           ; row being filled, 0 or 1 (the original: byte offset 0 or 0xa00)
 0x1a01 uint16_t terrain_row_prev
 0x1a45 uint16_t seg_heightmap             ; 256x256 heights (GS in the original)
 0x1a47 uint16_t seg_colormap              ; 256x256 colour/surface (FS)
@@ -35,7 +35,7 @@
 0x1a4d uint8_t  palette[768]
 0x1d51 uint8_t  fog_table[17][256]        ; [distance/256][colour] -> colour
 0x2e51 uint8_t  shade_table[16][256]      ; [level][colour] -> colour (translucency)
-0x3e51 uint16_t particle_bytes            ; number of live particles * sizeof(Particle)
+0x3e51 uint16_t particle_count            ; live particles (the original counted bytes)
 0x3e53 Particle particles[200]
 0x5bba int16_t  num_cars
 0xdb10 uint16_t seg_screen                ; 320x200 8-bit framebuffer
@@ -64,7 +64,7 @@
 0xea24 int16_t  ground_slope_x
 0xea26 int16_t  ground_slope_y
 0xea28 uint8_t  ground_surface            ; colour-map byte under the last tested point
-0xea99 uint16_t hull_plane_bytes
+0xea99 uint16_t hull_plane_count          ; (the original counted bytes)
 0xea9b Vec3     hull_normal[16]           ; collision planes of the car being tested: normal
 0xeb5b Pos      hull_point[16]            ; and a point on each
 0xef80 uint16_t pcx_width

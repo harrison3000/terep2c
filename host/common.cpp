@@ -44,7 +44,7 @@ void host_free_game()
 
 bool host_init_dataseg()
 {
-    G = static_cast<DataSeg *>(calloc(1, 0x10000));
+    G = static_cast<DataSeg *>(calloc(1, sizeof(DataSeg)));
     if (!G) {
         perror("data segment");
         return false;

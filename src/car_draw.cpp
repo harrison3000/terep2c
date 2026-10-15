@@ -233,9 +233,30 @@ std::vector<ModelOp> model_decode(const std::vector<uint8_t> &code)
  * Running the decoded model
  * ---------------------------------------------------------------------- */
 
-static const ProjVertex &point(uint16_t i) { return *reinterpret_cast<const ProjVertex *>(ds_ptr((uint16_t)(offsetof(DataSeg, car_proj) + i * sizeof(ProjVertex)))); }
+/* Projected point i; the original read any point index from the data
+ * segment, here those past car_proj give a point at the origin. */
+static const ProjVertex &point(uint16_t i)
+{
+    static const ProjVertex none = {};
+    return i < sizeof G->car_proj / sizeof G->car_proj[0] ? G->car_proj[i] : none;
+}
 
-static uint16_t ds_word(uint16_t ofs) { return (uint16_t)(*ds_ptr(ofs) | *ds_ptr((uint16_t)(ofs + 1)) << 8); }
+/* The shade table of OP_SHADED_TAB: the word at byte idx of what was
+ * car_uv_table in the original, the 0xc8 bytes after the first 100
+ * projected points (never written there by the demo's cars, which have
+ * fewer than 50 vertices); the original read past it, here that is 0. */
+static uint16_t shade_tab(uint16_t idx)
+{
+    const ProjVertex *table = &G->car_proj[100];
+    const int16_t *words = &table[0].x;     /* ProjVertex is five int16_t */
+    if ((uint32_t)idx + 1 >= 20 * sizeof(ProjVertex))
+        return 0;
+    if (idx & 1) {                          /* an odd byte offset: two halves */
+        uint16_t lo = (uint16_t)words[idx / 2], hi = (uint16_t)words[idx / 2 + 1];
+        return (uint16_t)(lo >> 8 | hi << 8);
+    }
+    return (uint16_t)words[idx / 2];
+}
 
 /* Feeds the outline of a polygon to the clipper.  Returns the number of
  * points that survived the near plane. */
@@ -249,10 +270,7 @@ static uint16_t draw_outline(const ModelOp &o)
         if (o.op == OP_FLAT)
             attr = 0;
         else if (o.op == OP_SHADED_TAB)
-            /* in the data segment, like the original (its program counter
-             * was a data segment offset); this port used to read the model
-             * at that offset instead */
-            attr = (uint16_t)(ds_word((uint16_t)(offsetof(DataSeg, car_uv_table) + attr)) + o.word);
+            attr = (uint16_t)(shade_tab((uint16_t)attr) + o.word);
         if (i == 0)
             poly_begin(p, attr);
         else if (i < n)

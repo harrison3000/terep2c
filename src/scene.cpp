@@ -370,7 +370,7 @@ void draw_terrain()
     bool descending = !swap_xy ? !parity_even(octant & 0xa0) : !(octant & 0x80);
 
     G->terrain_row_cur = 0;
-    G->terrain_row_prev = 0xa00;
+    G->terrain_row_prev = 1;
     G->terrain_swap_xy = (uint8_t)swap_xy;
     compute_visible_area(swap_xy);
     for (int i = 0; i < G->num_cars; i++)
@@ -387,8 +387,8 @@ void draw_terrain()
         ScanEdge *prev = descending ? span + 1 : span - 1;
         uint8_t left = (uint8_t)span->left, right = (uint8_t)span->right;
         uint8_t prev_left = (uint8_t)prev->left, prev_right = (uint8_t)prev->right;
-        ProjVertex *cur_buf = G->terrain_rows[G->terrain_row_cur ? 1 : 0];
-        ProjVertex *prev_buf = G->terrain_rows[G->terrain_row_prev ? 1 : 0];
+        ProjVertex *cur_buf = G->terrain_rows[G->terrain_row_cur];
+        ProjVertex *prev_buf = G->terrain_rows[G->terrain_row_prev];
         ProjVertex *lo = descending ? cur_buf : prev_buf;
         ProjVertex *hi = descending ? prev_buf : cur_buf;
         uint8_t row_c = descending ? row : (uint8_t)(row - 1);
@@ -421,8 +421,8 @@ void draw_terrain()
             row++;
             row_index++;
         }
-        G->terrain_row_cur ^= 0xa00;
-        G->terrain_row_prev ^= 0xa00;
+        G->terrain_row_cur ^= 1;
+        G->terrain_row_prev ^= 1;
     }
 }
 
@@ -453,7 +453,7 @@ void draw_sprite(int16_t sx, int16_t sy, int16_t depth, const SpriteQuad &q, con
 void draw_particles()
 {
     const uint8_t *tex = seg_ptr(G->seg_textures);
-    for (uint16_t i = 0; i < G->particle_bytes / sizeof(Particle); i++) {
+    for (uint16_t i = 0; i < G->particle_count; i++) {
         const Particle &p = G->particles[i];
         uint8_t a = p.pos.x.cell(), b = p.pos.y.cell();
         int16_t row = G->terrain_swap_xy ? a : b;

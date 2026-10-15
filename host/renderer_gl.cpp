@@ -396,7 +396,7 @@ static int isLine(uint16_t vertx[], int n){
 }
 
 static void updateSprites(){
-    auto n_sprites = G->particle_bytes / 28;
+    auto n_sprites = G->particle_count;
 
     RzSprite spr[256];
 

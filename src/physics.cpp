@@ -344,16 +344,15 @@ static bool contact_grips(int32_t *div)
 /* Spawn a particle (dust, smoke) where a point slides.  orig 1000:4d96 */
 static void spawn_particle(const CarVertex &v)
 {
-    uint16_t at = G->particle_bytes;
-    if (at >= 200 * sizeof(Particle))
+    if (G->particle_count >= 200)
         return;
-    Particle &p = G->particles[at / sizeof(Particle)];
+    Particle &p = G->particles[G->particle_count];
     p.pos = v.pos;
     p.pos.z -= (int32_t)Coord::from_units((uint16_t)v.radius).raw;
     p.vel = { mulq31(contact.slide[0], n1c()), mulq31(contact.slide[1], n2c()), v.vel.z };
     p.kind = G->ground_surface;
     p.life = 100;
-    G->particle_bytes += sizeof(Particle);
+    G->particle_count++;
 }
 
 /* Move a point by the slide that the friction did not absorb. */
@@ -511,14 +510,14 @@ static int32_t hull_normal_component(int32_t a0, int32_t a1, int32_t b0, int32_t
     return (a0 >> 14) * (b0 >> 14) - (a1 >> 14) * (b1 >> 14);
 }
 
-static int hull_planes() { return G->hull_plane_bytes / sizeof(Vec3); }
+static int hull_planes() { return G->hull_plane_count; }
 
 /* Build the collision planes of a car from the hull triangles: for each
  * triangle a point and an (unnormalised) normal.  orig 1000:5091 */
 void Car::build_hull()
 {
     CarVertex *v = vertices();
-    G->hull_plane_bytes = 0;
+    G->hull_plane_count = 0;
     for (int t = 0; t < (int)(sizeof hull_triangles / sizeof hull_triangles[0]); t++) {
         Pos p = v[hull_triangles[t][0]].pos;
         Vec3 pq = p - v[hull_triangles[t][1]].pos;
@@ -529,7 +528,7 @@ void Car::build_hull()
                            -hull_normal_component(pr.z, pq.z, pq.x, pr.x),
                            hull_normal_component(pr.x, pq.x, pq.y, pr.y) };
         G->hull_point[k] = p;
-        G->hull_plane_bytes += sizeof(Vec3);
+        G->hull_plane_count++;
     }
 }
 
@@ -617,15 +616,15 @@ static void particles_update()
 {
     Particle *particles = G->particles;
     uint16_t i = 0;
-    while (i < G->particle_bytes / sizeof(Particle)) {
+    while (i < G->particle_count) {
         Particle &p = particles[i];
         p.life -= 2;
         if (p.life < 0) {
             /* dead: move the last particle into this slot and redo it */
-            G->particle_bytes -= sizeof(Particle);
-            if (G->particle_bytes == 0)
+            G->particle_count--;
+            if (G->particle_count == 0)
                 return;
-            p = particles[G->particle_bytes / sizeof(Particle)];
+            p = particles[G->particle_count];
             continue;
         }
         p.pos += p.vel;
