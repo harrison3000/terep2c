@@ -196,6 +196,13 @@ static void load_cars()
 
 /* ------------------------------------------------------------------------ */
 
+/* Changes render_scale during a game: only the hires screen depends on it. */
+void game_set_scale(int scale)
+{
+    render_scale = scale;
+    segments.hires_screen.assign(scale > 1 ? (size_t)screen_w() * screen_h() : 0, 0);
+}
+
 /* The segments and the cars, freed. */
 void game_free()
 {

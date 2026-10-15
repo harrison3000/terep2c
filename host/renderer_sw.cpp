@@ -12,7 +12,6 @@ static GuiTexture *picture;
 
 bool software_start()
 {
-    rgba.assign((size_t)screen_w() * screen_h(), 0);
     picture = new GuiTexture;
     return true;
 }
@@ -21,7 +20,8 @@ bool software_frame(int win_w, int win_h, PictureRect *where)
 {
     if (game_frame())
         return false;
-    const int w = screen_w(), h = screen_h();
+    const int w = screen_w(), h = screen_h();         // the scale may change (Esc menu)
+    rgba.resize((size_t)w * h);
     const uint8_t *scr = screen();
     for (int i = 0; i < w * h; i++) {
         const uint8_t *c = host_palette(scr[i]);

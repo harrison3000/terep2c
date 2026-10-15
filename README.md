@@ -37,8 +37,10 @@ g++ 15+ or clang++ 19+. Tested on Linux x86-64 with both. The code does not depe
 size, but it has not been tested on 32 bits. Physics runs at 120 Hz and the display at 60 Hz, as
 in the Win16 port. The window opens at the size of the picture at the chosen scale (`-s`),
 enlarged to at least 960x600 and reduced by a whole factor if it does not fit on the screen.
-Esc quits; in a game started from the map chooser it goes back to the chooser, where another
-map (or other options) can be picked. Each game starts from scratch: `game_init` resets
+Esc pauses the game and opens a small menu: the render scale (software renderer only; the
+window follows it) and the minimap. Esc again resumes; the menu's button quits, or, in a game
+started from the map chooser, goes back to the chooser, where another map (or other options)
+can be picked. Each game starts from scratch: `game_init` resets
 the global state (`state_reset`) and everything the game allocated (`game_free`).
 
 Window: the SDL host owns one OpenGL 3.3 core context (`host/gui.cpp`). The map chooser, the

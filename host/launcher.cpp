@@ -20,8 +20,6 @@ namespace fs = std::filesystem;
 
 namespace {
 
-constexpr Uint32 ESC_GRACE_MS = 300;    // Esc does not close the chooser this soon after it opens
-                                        // (an Esc pressed twice to leave a game)
 constexpr int PREVIEW_MIN_W = 320, PREVIEW_MAX_W = 960;    // rendered size; shown larger if needed
 constexpr float LIST_SHARE = 0.36f;                         // of the window width, for the directories
 
@@ -233,7 +231,6 @@ bool Launcher::frame(std::string *map)
 
 bool launcher_run(std::string *map, HostOptions *host)
 {
-    const Uint32 opened = SDL_GetTicks();
     bool chosen = false, quit = false;
     {
         Launcher ui(host, *map);
@@ -242,7 +239,7 @@ bool launcher_run(std::string *map, HostOptions *host)
             while (SDL_PollEvent(&e)) {
                 gui_event(e);
                 bool esc = e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_ESCAPE && !e.key.repeat;
-                if (e.type == SDL_QUIT || (esc && SDL_GetTicks() - opened >= ESC_GRACE_MS))
+                if (e.type == SDL_QUIT || esc)
                     quit = true;
             }
             gui_begin();

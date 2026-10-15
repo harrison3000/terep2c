@@ -493,7 +493,8 @@ FILE    *data_fopen(const char *name);  /* provided by the host: open a track fi
 extern const char title_text[], subtitle_text[];
 void     game_frame_reset();
 int      game_init();                   /* also to start again (new track): the host makes a new G first */
-void     game_free();                   /* the segments and the cars, before freeing G */
+void     game_free();
+void     game_set_scale(int scale);     /* during a game: the state does not depend on it */                   /* the segments and the cars, before freeing G */
 int      game_frame();
 void     game_key(uint8_t scancode);
 
