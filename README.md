@@ -270,6 +270,14 @@ told apart by its first letter and made exactly as recorded at 1x: `init`, `P` (
 
 The last line sums it up, and the exit code is 1 if any frame differs or has no original.
 
+`-s N` replays at a higher scale. The recorded hashes are of 1x frames, so there they are
+replaced by the port's own: `-R` writes them to `recdir/hashes_Nx.txt` (one per
+`frame_fnv1a_64` line) and `-C` compares with that file, as a regression test of the higher
+scales. The `frame:` images are compared by similarity instead: the average colour of each 8 x 8
+block (in 1x pixels), whose mean difference must stay under 15 (the finer projection moves
+edges and texels by less than a pixel; the same picture gives 1 to 10, another one over 30).
+`make test` also replays every recording at each scale it has a `hashes_Nx.txt` for.
+
 ## Things found along the way
 
 Bugs and quirks of the original that were **kept** (they are commented in the code):

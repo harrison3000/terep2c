@@ -2,16 +2,19 @@
  * Test host (headless): replays recordings made with the Win16 port and
  * compares the frames (replay() below).
  *
- *   terep2-headless [-E option]... -R|-C recdir mapdir
+ *   terep2-headless [-s scale] [-E option]... -R|-C recdir mapdir
  *
  * -R: replay recdir/record.txt on mapdir, at 1x, writing the frames it
  * names as name_new.pgm; -C: the same, only comparing.
+ * -s scale: render at that scale; the frames are compared by similarity
+ * (block_difference) and the hashes with the port's own (hashes_Nx.txt).
  * -E option, --extra-options option: turn on an extra option (see
  * extra_option_list), such as a fix of a bug of the original, or "all".
  */
 #include <algorithm>
 #include <climits>
 #include <cstdlib>
+#include <cmath>
 #include <cstring>
 #include <string>
 #include <string_view>
@@ -42,13 +45,47 @@ static bool read_pgm(const char *path, std::vector<uint8_t> *pixels)
     return ok;
 }
 
-// FNV-1a, 64 bits, of the frame buffer (320 x 200).
-static uint64_t frame_fnv1a_64(const uint8_t *scr)
+// FNV-1a, 64 bits.
+static uint64_t fnv1a_64(const uint8_t *p, size_t n)
 {
     uint64_t h = 0xcbf29ce484222325;
-    for (int i = 0; i < 320 * 200; i++)
-        h = (h ^ scr[i]) * 0x100000001b3;
+    for (size_t i = 0; i < n; i++)
+        h = (h ^ p[i]) * 0x100000001b3;
     return h;
+}
+
+/* How far a frame at a higher scale is from the original's 1x frame orig:
+ * the average colour of each 8 x 8 block (in 1x pixels), compared channel by
+ * channel; the mean of the largest channel difference of every block.  The
+ * finer projection moves edges and texels by less than a pixel, which this
+ * mostly ignores: 1 to 10 for the same picture (a camera grazing the
+ * ground changes the most), over 30 for another. */
+constexpr double SIMILAR_MAX = 15;
+static double block_difference(const uint8_t *orig)
+{
+    const int s = render_scale, B = 8;
+    double total = 0;
+    for (int by = 0; by < 200; by += B)
+        for (int bx = 0; bx < 320; bx += B) {
+            double a[3] = {}, b[3] = {};
+            for (int y = by; y < by + B; y++)
+                for (int x = bx; x < bx + B; x++) {
+                    const uint8_t *o = host_palette(orig[y * 320 + x]);
+                    for (int c = 0; c < 3; c++)
+                        a[c] += o[c] * (double)s * s;
+                    for (int yy = y * s; yy < (y + 1) * s; yy++)
+                        for (int xx = x * s; xx < (x + 1) * s; xx++) {
+                            const uint8_t *m = host_palette(screen()[yy * screen_w() + xx]);
+                            for (int c = 0; c < 3; c++)
+                                b[c] += m[c];
+                        }
+                }
+            double worst = 0;
+            for (int c = 0; c < 3; c++)
+                worst = std::max(worst, std::abs(a[c] - b[c]) / (B * B * s * s));
+            total += worst;
+        }
+    return total / ((320 / B) * (200 / B));
 }
 
 // Writes the frame buffer as recdir/name_new.pgm (P5, as the port does).
@@ -62,8 +99,8 @@ static void save_frame(const char *dir, const char *name, int renders)
         perror(mine.c_str());
         return;
     }
-    fprintf(out, "P5\n#frame %d\n320 200\n255\n", renders);
-    fwrite(screen(), 1, 320 * 200, out);
+    fprintf(out, "P5\n#frame %d\n%d %d\n255\n", renders, screen_w(), screen_h());
+    fwrite(screen(), 1, (size_t)screen_w() * screen_h(), out);
     fclose(out);
 }
 
@@ -79,7 +116,7 @@ static void save_frame(const char *dir, const char *name, int renders)
  *   frame_fnv1a_64: 0xcb3dbe0bb5f1a8b3
  *                      compares the frame buffer's FNV-1a hash with that one
  * Returns 0 if every frame matched, 1 if not (or on errors). */
-static int replay(const char *rec, const char *mapdir, bool save)
+static int replay(const char *rec, const char *mapdir, bool save, int scale)
 {
     char dir[PATH_MAX], map[PATH_MAX];       // absolute: init changes to the map's directory
     if (!realpath(rec, dir) || !realpath(mapdir, map)) {
@@ -92,7 +129,17 @@ static int replay(const char *rec, const char *mapdir, bool save)
         perror(record.c_str());
         return 1;
     }
-    render_scale = 1;                       // the original's frame buffer
+    render_scale = scale;                   // 1: the original's frame buffer
+    /* At higher scales the recorded hashes (of 1x frames) do not apply: the
+     * port's own, in recdir/hashes_Nx.txt, are written there (-R) or compared
+     * with it (-C, if it exists), one per frame_fnv1a_64 line. */
+    FILE *hashes = nullptr;
+    if (scale > 1) {
+        std::string hp = std::string(dir) + "/hashes_" + std::to_string(scale) + "x.txt";
+        hashes = fopen(hp.c_str(), save ? "w" : "r");
+        if (!hashes && save)
+            perror(hp.c_str());
+    }
     int renders = 0, same = 0, differ = 0, missing = 0, line_no = 0;
     std::string first_diff;
     bool started = false;
@@ -127,7 +174,26 @@ static int replay(const char *rec, const char *mapdir, bool save)
         } else if (sscanf(line, "K: %x", &key) == 1) {
             game_key((uint8_t)key);
         } else if (sscanf(line, "frame_fnv1a_64: %llx", &hash) == 1) {
-            uint64_t mine = frame_fnv1a_64(screen());
+            if (scale > 1) {
+                uint64_t mine = fnv1a_64(screen(), (size_t)screen_w() * screen_h());
+                unsigned long long saved;
+                if (!hashes)
+                    continue;
+                if (save) {
+                    fprintf(hashes, "0x%016llx\n", (unsigned long long)mine);
+                    continue;
+                }
+                if (fscanf(hashes, "%llx", &saved) == 1 && saved == mine) {
+                    same++;
+                    continue;
+                }
+                printf("record.txt:%d, after %d renders: fnv1a 0x%016llx, saved 0x%016llx\n", line_no, renders,
+                       (unsigned long long)mine, saved);
+                if (!differ++)
+                    first_diff = "at record.txt:" + std::to_string(line_no);
+                continue;
+            }
+            uint64_t mine = fnv1a_64(screen(), 320 * 200);
             if (mine == hash) {
                 same++;
                 continue;
@@ -144,6 +210,16 @@ static int replay(const char *rec, const char *mapdir, bool save)
             if (!read_pgm((std::string(dir) + "/" + name).c_str(), &orig)) {
                 printf("%s: original missing or unreadable\n", name);
                 missing++;
+                continue;
+            }
+            if (scale > 1) {
+                double d = block_difference(orig.data());
+                bool ok = d <= SIMILAR_MAX;
+                printf("%s: %s (block difference %.1f)\n", name, ok ? "similar" : "NOT SIMILAR", d);
+                if (ok)
+                    same++;
+                else if (!differ++)
+                    first_diff = name;
                 continue;
             }
             int diff = 0, x0 = 320, y0 = 200, x1 = -1, y1 = -1;
@@ -168,6 +244,8 @@ static int replay(const char *rec, const char *mapdir, bool save)
         }
     }
     fclose(in);
+    if (hashes)
+        fclose(hashes);
     printf("%d frames: %d same, %d differ%s%s, %d without original\n", same + differ + missing, same, differ,
            differ ? ", first " : "", first_diff.c_str(), missing);
     return differ || missing ? 1 : 0;
@@ -178,11 +256,14 @@ int main(int argc, char **argv)
     int a = 1;
     const char *rec = nullptr;
     bool save = true;
+    int scale = 1;
     for (; a + 1 < argc && argv[a][0] == '-'; a += 2) {
         std::string_view opt = argv[a];
         if (opt == "-R" || opt == "-C") {
             rec = argv[a + 1];
             save = opt == "-R";
+        } else if (opt == "-s") {
+            scale = atoi(argv[a + 1]);
         } else if (opt != "-E" && opt != "--extra-options") {
             break;
         } else if (!extra_option_enable(argv[a + 1])) {
@@ -193,9 +274,9 @@ int main(int argc, char **argv)
             return 2;
         }
     }
-    if (!rec || argc - a != 1) {
-        fprintf(stderr, "usage: %s [-E option]... -R|-C recdir mapdir\n", argv[0]);
+    if (!rec || argc - a != 1 || scale < 1 || scale > MAX_RENDER_SCALE) {
+        fprintf(stderr, "usage: %s [-s 1..%d] [-E option]... -R|-C recdir mapdir\n", argv[0], MAX_RENDER_SCALE);
         return 2;
     }
-    return replay(rec, argv[a], save);
+    return replay(rec, argv[a], save, scale);
 }
