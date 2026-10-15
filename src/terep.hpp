@@ -295,6 +295,8 @@ inline uint8_t *colormap()  { return seg_ptr(G->seg_colormap); }
 constexpr int MAX_RENDER_SCALE = 8;
 extern int      render_scale;           /* set by the host before game_init */
 extern uint8_t *hires_screen;
+/* Per-scanline polygon tables (raster.cpp), the data segment's at every scale. */
+extern ScanEdge span_x[200 * MAX_RENDER_SCALE], span_a[200 * MAX_RENDER_SCALE], span_b[200 * MAX_RENDER_SCALE];
 inline int      screen_w() { return 320 * render_scale; }
 inline int      screen_h() { return 200 * render_scale; }
 inline uint8_t *screen()   { return render_scale > 1 ? hires_screen : seg_ptr(G->seg_screen); }

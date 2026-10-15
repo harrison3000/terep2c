@@ -82,9 +82,9 @@
 0xdbc2 int16_t  clip_right
 0xdbc4 int16_t  span_top
 0xdbc6 int16_t  span_bottom
-0xdbc8 ScanEdge span_x[200]               ; left/right x per scanline
-0xdee8 ScanEdge span_a[200]               ; first attribute (u or shade) per scanline
-0xe208 ScanEdge span_b[200]               ; second attribute (v) per scanline
+0xdbc8 ScanEdge span_x[200]               ; unused: left/right x per scanline (raster.cpp's span_x)
+0xdee8 ScanEdge span_a[200]               ; unused: first attribute (u or shade) per scanline (span_a)
+0xe208 ScanEdge span_b[200]               ; unused: second attribute (v) per scanline (span_b)
 0xe528 uint16_t tmp_clip_count
 0xe52a uint8_t  unk_e52a[6]
 0xe530 PointBuf vis_buf[2]                ; visible-terrain hexagon in map cells, [1] = clipping scratch

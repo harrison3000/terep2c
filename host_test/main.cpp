@@ -4,7 +4,7 @@
  * of the data segment (scratch variables masked), in the same format as
  * tools/oracle so the outputs can be compared directly.  The cars are
  * written back into the segment first (car_image.cpp), where the original
- * keeps them.
+ * keeps them, and so are the scanline tables.
  *
  *   terep2-headless [-s scale] [-E option]... [-p map:frames] mapdir frames [script] [ppmdir]
  *
@@ -41,6 +41,11 @@ static const uint8_t *dataseg_image()
     static uint8_t image[0x10000];
     memcpy(image, G, sizeof image);
     cars_to_dataseg(image);
+    if (render_scale == 1) {            // the scanline tables, where the original has them
+        memcpy(image + offsetof(DataSeg, span_x), span_x, sizeof G->span_x);
+        memcpy(image + offsetof(DataSeg, span_a), span_a, sizeof G->span_a);
+        memcpy(image + offsetof(DataSeg, span_b), span_b, sizeof G->span_b);
+    }
     return image;
 }
 

@@ -214,6 +214,9 @@ int game_init()
     game_frame_reset();
     free(hires_screen);
     hires_screen = nullptr;
+    memset(span_x, 0, sizeof span_x);   /* zero, as the data segment's were */
+    memset(span_a, 0, sizeof span_a);
+    memset(span_b, 0, sizeof span_b);
 
     G->num_cars = -2;
     G->unk_ec50 = 0x78;

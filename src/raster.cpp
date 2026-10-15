@@ -15,12 +15,10 @@
 int      render_scale = 1;
 uint8_t *hires_screen;
 
-/* Per-scanline tables: the original's, in the data segment, at scale 1;
- * taller ones outside it otherwise. */
-static ScanEdge hires_spans[3][200 * MAX_RENDER_SCALE];
-static ScanEdge *span_x() { return render_scale > 1 ? hires_spans[0] : G->span_x; }
-static ScanEdge *span_a() { return render_scale > 1 ? hires_spans[1] : G->span_a; }
-static ScanEdge *span_b() { return render_scale > 1 ? hires_spans[2] : G->span_b; }
+/* Per-scanline tables, tall enough for every scale.  The original keeps
+ * them in the data segment, where they are left unused (dataseg.def). 
+ * TODO make these static again after the test overhaul */
+ScanEdge span_x[200 * MAX_RENDER_SCALE], span_a[200 * MAX_RENDER_SCALE], span_b[200 * MAX_RENDER_SCALE];
 
 /* Clear the frame buffer to colour 0xff.  orig 1000:2b98 */
 void clear_screen()
@@ -176,7 +174,7 @@ static void scan_edge_x(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
         return;
     int32_t step = (int32_t)((uint32_t)(uint16_t)(x1 - x0) << 16) / dy;
     uint32_t x = (uint32_t)(uint16_t)x0 << 16;
-    int16_t *row = side ? &span_x()[0].right : &span_x()[0].left;
+    int16_t *row = side ? &span_x[0].right : &span_x[0].left;
     row += 2 * y0;
     for (int16_t i = 0; i < dy; i++, row += 2) {
         *row = (int16_t)(x >> 16);
@@ -223,8 +221,8 @@ static void scan_edge_uv(int16_t y0, int16_t y1, uint16_t u0, uint16_t v0, uint1
     int32_t du = (int32_t)((uint32_t)(uint16_t)(u1 - u0) << 16) / dy;
     int32_t dv = (int32_t)((uint32_t)(uint16_t)(v1 - v0) << 16) / dy;
     uint32_t u = (uint32_t)u0 << 16, v = (uint32_t)v0 << 16;
-    int16_t *ru = &span_a()[0].left + side + 2 * y0;
-    int16_t *rv = &span_b()[0].left + side + 2 * y0;
+    int16_t *ru = &span_a[0].left + side + 2 * y0;
+    int16_t *rv = &span_b[0].left + side + 2 * y0;
     for (int16_t i = 0; i < dy; i++, ru += 2, rv += 2) {
         *ru = (int16_t)(u >> 16);
         *rv = (int16_t)(v >> 16);
@@ -257,8 +255,8 @@ static bool scan_outline(int attrs)
  * segment (see pixel_mask), higher scales cut them to the rectangle. */
 static uint32_t span_extent(int16_t y, int16_t *x0, int16_t *w)
 {
-    int16_t l = span_x()[y].left;
-    int16_t d = (int16_t)(span_x()[y].right - l);
+    int16_t l = span_x[y].left;
+    int16_t d = (int16_t)(span_x[y].right - l);
     if (d < 0) {
         l = (int16_t)(l + d);
         d = (int16_t)-d;
@@ -316,7 +314,7 @@ void draw_shaded()
         return;
     const PolyVertex *v = G->poly_buf[0].v;
     uint16_t n = G->poly_buf[0].count;
-    int16_t *tab = &span_a()[0].left;
+    int16_t *tab = &span_a[0].left;
     for (uint16_t i = 0; i + 1 < n; i++)
         scan_edge_attr(tab, (int16_t)v[i].a, v[i].sy, (int16_t)v[i + 1].a, v[i + 1].sy);
     scan_edge_attr(tab, (int16_t)v[n - 1].a, v[n - 1].sy, (int16_t)v[0].a, v[0].sy);
@@ -327,9 +325,9 @@ void draw_shaded()
     uint8_t *scr = screen();
     const uint32_t m = pixel_mask();
     for (int16_t y = G->span_top; rows >= 0; rows--, y++) {
-        int16_t a0 = span_a()[y].left;
-        int16_t da = (int16_t)(span_a()[y].right - a0);
-        if ((int16_t)(span_x()[y].right - span_x()[y].left) < 0) {
+        int16_t a0 = span_a[y].left;
+        int16_t da = (int16_t)(span_a[y].right - a0);
+        if ((int16_t)(span_x[y].right - span_x[y].left) < 0) {
             a0 = (int16_t)(a0 + da);
             da = (int16_t)-da;
         }
@@ -363,9 +361,9 @@ void draw_textured(const uint8_t *tex)
     uint8_t *scr = screen();
     const uint32_t m = pixel_mask();
     for (int16_t y = G->span_top; rows >= 0; rows--, y++) {
-        int16_t u0 = span_a()[y].left, du = (int16_t)(span_a()[y].right - u0);
-        int16_t v0 = span_b()[y].left, dv = (int16_t)(span_b()[y].right - v0);
-        if ((int16_t)(span_x()[y].right - span_x()[y].left) < 0) {
+        int16_t u0 = span_a[y].left, du = (int16_t)(span_a[y].right - u0);
+        int16_t v0 = span_b[y].left, dv = (int16_t)(span_b[y].right - v0);
+        if ((int16_t)(span_x[y].right - span_x[y].left) < 0) {
             u0 = (int16_t)(u0 + du); du = (int16_t)-du;
             v0 = (int16_t)(v0 + dv); dv = (int16_t)-dv;
         }

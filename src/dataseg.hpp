@@ -88,9 +88,9 @@ struct PACKED DataSeg {
     int16_t clip_right;                      /* dbc2 */
     int16_t span_top;                        /* dbc4 */
     int16_t span_bottom;                     /* dbc6 */
-    ScanEdge span_x[200];                    /* dbc8: left/right x per scanline */
-    ScanEdge span_a[200];                    /* dee8: first attribute (u or shade) per scanline */
-    ScanEdge span_b[200];                    /* e208: second attribute (v) per scanline */
+    ScanEdge span_x[200];                    /* dbc8: unused: left/right x per scanline (raster.cpp's span_x) */
+    ScanEdge span_a[200];                    /* dee8: unused: first attribute (u or shade) per scanline (span_a) */
+    ScanEdge span_b[200];                    /* e208: unused: second attribute (v) per scanline (span_b) */
     uint16_t tmp_clip_count;                 /* e528 */
     uint8_t unk_e52a[6];                     /* e52a */
     PointBuf vis_buf[2];                     /* e530: visible-terrain hexagon in map cells, [1] = clipping scratch */
