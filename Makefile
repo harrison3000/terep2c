@@ -2,6 +2,7 @@
 #   make            headless test host, terep2-headless (no dependencies)
 #   make sdl        SDL2 version (needs SDL2 development files and the host/imgui submodule)
 #   make test       compare the headless host with the recorded reference
+#   make coverage   which lines of src/ the tests run (clang/LLVM), [REPLAY="recdir mapdir"]
 #   make -j8 ...    in parallel: every file is its own object in build/
 CXX      ?= c++
 CXXFLAGS ?= -O2 -g
@@ -78,10 +79,43 @@ terep2vibed: $(GAME_OBJ) $(HOST_OBJ) $(SDL_OBJ) $(IMGUI_OBJ) build/opl3.o build/
 test: terep2-headless
 	sh tests/run_tests.sh
 
+# Coverage of the game's code by the tests: the headless host built with clang's source-based
+# coverage in build/cov, the tests (pass or not), one game at 3x and, with
+# REPLAY="recdir mapdir", a recording.  Summary on the terminal, report in build/cov/html.
+COV_CXX       ?= clang++
+LLVM_PROFDATA ?= llvm-profdata
+LLVM_COV      ?= llvm-cov
+COV_FLAGS     := -O0 -g -std=gnu++17 -fwrapv -Wno-address-of-packed-member -fprofile-instr-generate -fcoverage-mapping
+COV_OBJ       := $(patsubst build/%,build/cov/%,$(GAME_OBJ) $(HOST_OBJ) $(TEST_OBJ))
+COV_RUN       := LLVM_PROFILE_FILE=$(CURDIR)/build/cov/prof/%p.profraw
+COV_SHOW      := build/cov/terep2-headless -instr-profile=build/cov/all.profdata -ignore-filename-regex='host'
+
+build/cov/game/%.o: src/%.cpp | src/dataseg.hpp
+	@mkdir -p $(@D)
+	$(COV_CXX) $(COV_FLAGS) $(DEPFLAGS) -c -o $@ $<
+build/cov/host/%.o: host/%.cpp | src/dataseg.hpp
+	@mkdir -p $(@D)
+	$(COV_CXX) $(COV_FLAGS) $(DEPFLAGS) -c -o $@ $<
+build/cov/test/%.o: host_test/%.cpp | src/dataseg.hpp
+	@mkdir -p $(@D)
+	$(COV_CXX) $(COV_FLAGS) $(DEPFLAGS) -c -o $@ $<
+build/cov/terep2-headless: $(COV_OBJ)
+	$(COV_CXX) $(COV_FLAGS) -o $@ $^ -lm
+
+coverage: build/cov/terep2-headless
+	rm -rf build/cov/prof build/cov/html
+	-$(COV_RUN) sh tests/run_tests.sh build/cov/terep2-headless
+	$(COV_RUN) build/cov/terep2-headless -s 3 data/Asphalt 600 "$$(cat tests/ref/cenario.txt)" > /dev/null
+	$(if $(REPLAY),-$(COV_RUN) build/cov/terep2-headless -C $(REPLAY) | tail -1)
+	$(LLVM_PROFDATA) merge -o build/cov/all.profdata build/cov/prof/*.profraw
+	$(LLVM_COV) report $(COV_SHOW)
+	$(LLVM_COV) show $(COV_SHOW) -format=html -show-branches=count -output-dir=build/cov/html > /dev/null
+	@echo "report: build/cov/html/index.html"
+
 clean:
 	rm -f terep2vibed terep2-headless
-	rm -rf build/game build/host build/test build/sdl build/imgui build/opl3.o build/opl3.d
+	rm -rf build/game build/host build/test build/sdl build/imgui build/opl3.o build/opl3.d build/cov
 
--include $(wildcard build/*/*.d build/*.d build/imgui/backends/*.d)
+-include $(wildcard build/*/*.d build/*.d build/imgui/backends/*.d build/cov/*/*.d)
 
-.PHONY: all sdl test clean FORCE
+.PHONY: all sdl test coverage clean FORCE
