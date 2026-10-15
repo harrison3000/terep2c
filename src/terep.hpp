@@ -216,7 +216,7 @@ struct Car {
     Angle    steer_used = {};       /* steering/throttle latched for this tick */
     int16_t  throttle_used = 0;
     uint16_t cell = 0;              /* map cell the car is drawn with */
-    uint16_t texture_seg = 0;       /* car skin (0 = use textures.pcx) */
+    std::vector<uint8_t> skin;      /* carN.pcx, SEGMENT_SIZE bytes (empty: textures.pcx) */
     uint16_t ref_index = 0;         /* reference vertex (camera anchor) */
     int      lowest = -1;           /* vertex pushed by the "jump" keys, -1 before the first push */
     int32_t  wheel_speed[4] = {};   /* angular speed of each wheel */
@@ -269,10 +269,16 @@ constexpr size_t MAX_SIZE = 10000;  /* the original reads at most this much */
 extern DataSeg *G;                  /* the data segment */
 extern uint8_t keys[128];           /* [0] = last scancode, [sc] bit 7 clear while held */
 
-/* "Segments": 64 KB blocks allocated at load time and referred to by a
- * 16-bit handle, exactly like the original's DOS memory blocks. */
-uint8_t *seg_ptr(uint16_t handle);
-int      seg_alloc(uint16_t paragraphs, uint16_t *handle);
+/* The original's other 64 KB segments, allocated by game_init: indexed
+ * with 16-bit offsets, which wrap around inside them like the original's.
+ * The hires screen (render_scale > 1) is 320*s x 200*s. */
+constexpr size_t SEGMENT_SIZE = 0x10000;
+struct Segments {
+    std::vector<uint8_t> heightmap, colormap;   /* 256 x 256 map layers */
+    std::vector<uint8_t> textures, maptex;      /* textures.pcx, maptex.pcx */
+    std::vector<uint8_t> screen, hires_screen;
+};
+extern Segments segments;
 
 
 constexpr int MAX_CARS = 5;
@@ -281,20 +287,19 @@ inline Car &car_get(int i) { return cars[i]; }
 
 /* Map layers.  Indexing with a uint16_t (x | y << 8) wraps around exactly
  * like the original's 16-bit offsets. */
-inline uint8_t *heightmap() { return seg_ptr(G->seg_heightmap); }
-inline uint8_t *colormap()  { return seg_ptr(G->seg_colormap); }
+inline uint8_t *heightmap() { return segments.heightmap.data(); }
+inline uint8_t *colormap()  { return segments.colormap.data(); }
 
 /* Resolution.  render_scale 1 is the original 320x200 in the original's
  * screen segment, rendered exactly like the original.  Larger scales draw
- * into hires_screen (320*s x 200*s) and project with the fractional bits
+ * into segments.hires_screen (320*s x 200*s) and project with the fractional bits
  * of the positions, so the picture does not shake (see view_transform).
  * The game state is the same at any scale. */
 constexpr int MAX_RENDER_SCALE = 8;
 extern int      render_scale;           /* set by the host before game_init */
-extern uint8_t *hires_screen;
 inline int      screen_w() { return 320 * render_scale; }
 inline int      screen_h() { return 200 * render_scale; }
-inline uint8_t *screen()   { return render_scale > 1 ? hires_screen : seg_ptr(G->seg_screen); }
+inline uint8_t *screen()   { return (render_scale > 1 ? segments.hires_screen : segments.screen).data(); }
 /* A scaled screen coordinate, kept where 16-bit differences of two of them
  * cannot overflow (at scale 1 the original's 16-bit wraparound stays). */
 inline int16_t screen_clamp(int32_t v)
@@ -401,6 +406,7 @@ FILE    *data_fopen(const char *name);  /* provided by the host: open a track fi
 extern const char title_text[], subtitle_text[];
 void     game_frame_reset();
 int      game_init();                   /* also to start again (new track): the host makes a new G first */
+void     game_free();                   /* the segments and the cars, before freeing G */
 int      game_frame();
 void     game_key(uint8_t scancode);
 

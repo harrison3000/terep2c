@@ -8,7 +8,7 @@
  *   0x08  uint16 drive       0 rear, 1 front, 2 all wheels
  *   0x0a  ...    the game's own state for the car (zero in the files):
  *         steer, throttle, handbrake, mid[3], steer_used, throttle_used,
- *         cell, ?, texture_seg, ref_vertex (offset), lowest_vertex (DS
+ *         cell, ?, texture segment, ref_vertex (offset), lowest_vertex (DS
  *         offset), 0x1e bytes ?, wheel_speed[4], spin[12], ?
  *   0x84  the sections, normally in the order above
  *
@@ -80,7 +80,6 @@ uint16_t car_read(Car &car, FILE *f)
     car.steer_used = { r.i16(0x16) };
     car.throttle_used = r.i16(0x18);
     car.cell = r.u16(0x1a);
-    car.texture_seg = r.u16(0x1e);
     for (int i = 0; i < 4; i++)
         car.wheel_speed[i] = r.i32(0x42 + 4 * i);
     for (int i = 0; i < 12; i++)

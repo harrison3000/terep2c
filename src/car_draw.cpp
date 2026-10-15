@@ -441,7 +441,7 @@ void draw_car(Car &car)
 {
     transform_car(car);
     if (!car.model_ops.empty()) {
-        Program program(car.model_ops, seg_ptr(car.texture_seg ? car.texture_seg : G->seg_textures));
+        Program program(car.model_ops, (car.skin.empty() ? segments.textures : car.skin).data());
         program.run(0);
     }
 }

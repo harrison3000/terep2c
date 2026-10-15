@@ -93,7 +93,7 @@ static void load_map()
 {
     if (!pcx_load(fname_map, heightmap()))
         return;
-    if (!pcx_load(fname_maptex, seg_ptr(G->seg_maptex)))
+    if (!pcx_load(fname_maptex, segments.maptex.data()))
         return;
 
     FILE *f = data_fopen(fname_col);
@@ -154,24 +154,18 @@ static void find_ref_vertex(Car &car)
 }
 
 /* The car's skin: a PCX of up to 256 pixels width in its own segment.
- * Without it the car keeps the segment named in its file (0 = textures.pcx). */
+ * Without it the car uses textures.pcx. */
 static void load_car_skin(Car &car, const char *name)
 {
     FILE *f = data_fopen(name);
     if (!f)
         return;
     pcx_read_header(f);
-    uint16_t w = (int16_t)G->pcx_width > 0x100 ? 0x100 : G->pcx_width;
-    uint16_t paragraphs = (uint16_t)(((uint16_t)(w * G->pcx_height) >> 4) + 1);
-    uint16_t seg;
-    if (seg_alloc(paragraphs, &seg) == 0) {
-        car.texture_seg = seg;
-        pcx_decode(f, seg_ptr(seg));
-    }
+    car.skin.assign(SEGMENT_SIZE, 0);
+    pcx_decode(f, car.skin.data());
     fclose(f);
 }
 
-/* A word of the data segment at a computed offset. */
 static const char *const car_dat_names[MAX_CARS] = { "car1.dat", "car2.dat", "car3.dat", "car4.dat", "car5.dat" };
 static const char *const car_pcx_names[MAX_CARS] = { "car1.pcx", "car2.pcx", "car3.pcx", "car4.pcx", "car5.pcx" };
 const char *car_dat_name(int i) { return car_dat_names[i]; }
@@ -197,16 +191,21 @@ static void load_cars()
 
 /* ------------------------------------------------------------------------ */
 
+/* The segments and the cars, freed. */
+void game_free()
+{
+    segments = Segments();
+    for (Car &c : cars)
+        c = Car();
+}
+
 /* Returns 0 on success.  orig f_init */
 int game_init()
 {
     /* everything outside the data segment as at the start of the program */
     memset(keys, 0xff, sizeof keys);
-    for (Car &c : cars)
-        c = Car();
+    game_free();
     game_frame_reset();
-    free(hires_screen);
-    hires_screen = nullptr;
 
     G->num_cars = -2;
     G->gravity = 0x1800;
@@ -226,20 +225,13 @@ int game_init()
         fclose(cfg);
     }
 
-    if (seg_alloc(0x1000, &G->seg_heightmap) || seg_alloc(0x1000, &G->seg_colormap) ||
-        seg_alloc(0x1000, &G->seg_textures) || seg_alloc(0x1000, &G->seg_maptex))
-        return 1;
+    for (auto *s : { &segments.heightmap, &segments.colormap, &segments.textures, &segments.maptex, &segments.screen })
+        s->assign(SEGMENT_SIZE, 0);
     load_map();
-    pcx_load(fname_textures, seg_ptr(G->seg_textures));      /* orig 1000:255c */
+    pcx_load(fname_textures, segments.textures.data());      /* orig 1000:255c */
     load_cars();
-
-    if (seg_alloc(0xfa0, &G->seg_screen))
-        return 1;
-    if (render_scale > 1) {
-        hires_screen = static_cast<uint8_t *>(calloc((size_t)screen_w(), (size_t)screen_h()));
-        if (!hires_screen)
-            return 1;
-    }
+    if (render_scale > 1)
+        segments.hires_screen.assign((size_t)screen_w() * screen_h(), 0);
     sound_init();
     G->sim_running = 1;
     return 0;

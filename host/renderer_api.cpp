@@ -21,7 +21,7 @@ MapFiles map_files(const std::string &dir)
     for (int i = 0; i < G->num_cars; i++) {
         MapFiles::Car c;
         c.dat = find(car_dat_name(i));
-        if (car_get(i).texture_seg)
+        if (!car_get(i).skin.empty())
             c.pcx = find(car_pcx_name(i));
         f.cars.push_back(c);
     }

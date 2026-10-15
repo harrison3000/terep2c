@@ -39,8 +39,8 @@ in the Win16 port. The window opens at the size of the picture at the chosen sca
 enlarged to at least 960x600 and reduced by a whole factor if it does not fit on the screen.
 Esc quits; in a game started from the map chooser it goes back to the chooser, where another
 map (or other options) can be picked. Each game starts from scratch: `game_init` resets
-everything the game keeps outside the data segment, and the host makes a new data segment and new
-segments (`host_free_game`).
+everything the game keeps outside the data segment and allocates its segments again, and the
+host makes a new data segment (`host_free_game`, which calls `game_free`).
 
 Window: the SDL host owns one OpenGL 3.3 core context (`host/gui.cpp`). The map chooser, the
 game's picture (the software renderer's frame, as a texture, scaled to the window keeping its
@@ -153,7 +153,7 @@ src/            the game (no OS or library dependencies)
   game.cpp      one frame (views, text, keys) and the keyboard
 host/
   host.hpp      what the hosts share
-  common.cpp    64 KB segments, creating the data segment, time step, case-insensitive file opening
+  common.cpp    creating and freeing the data segment, time step, case-insensitive file opening
   sdl_main.cpp  SDL2 host
   gui.cpp       its window: one OpenGL 3.3 core context, with ImGui (OpenGL3 backend) on it
   renderer_api.hpp  what an external OpenGL renderer gets: the context, the map's files and layers
@@ -210,8 +210,9 @@ still a `struct DataSeg` (`G->gravity`, `G->chase_cam[1]`...), generated from `s
 which keeps the original offsets as documentation; it is being split by subject. Nothing
 addresses it by offset any more.
 The asm's scratch variables became local variables. What lives outside the segment: the cars,
-the keyboard (`keys`), the image segments (heightmap, colour map, textures, screen, each car's
-texture) and the host.
+the keyboard (`keys`), the image segments (`segments`: heightmap, colour map, textures, screen,
+64 KB vectors indexed with 16-bit offsets that wrap like the original's; each car's skin is in its
+`Car`) and the host.
 
 ### Cars
 

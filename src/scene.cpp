@@ -281,7 +281,7 @@ static void draw_cell(const CellQuad &q, uint8_t color)
     uint32_t uv_s0 = tile_uv(color, sw, !sw);
     uint32_t uv_s1 = tile_uv(color, true, true);
 
-    const uint8_t *tex = seg_ptr(G->seg_maptex);
+    const uint8_t *tex = segments.maptex.data();
     poly_begin(q.d1, uv_d1);
     poly_add(q.d0, uv_d0);
     poly_add(q.s0, uv_s0);
@@ -452,7 +452,7 @@ void draw_sprite(int16_t sx, int16_t sy, int16_t depth, const SpriteQuad &q, con
  * orig 1000:0b25 */
 void draw_particles()
 {
-    const uint8_t *tex = seg_ptr(G->seg_textures);
+    const uint8_t *tex = segments.textures.data();
     for (uint16_t i = 0; i < G->particle_count; i++) {
         const Particle &p = G->particles[i];
         uint8_t a = p.pos.x.cell(), b = p.pos.y.cell();

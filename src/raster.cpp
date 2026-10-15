@@ -13,7 +13,7 @@
 
 
 int      render_scale = 1;
-uint8_t *hires_screen;
+Segments segments;
 
 /* Per-scanline tables, tall enough for every scale.  The original keeps
  * them in the data segment, where they are left unused (dataseg.def). 

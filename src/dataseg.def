@@ -28,17 +28,12 @@
 0x05ff ProjVertex terrain_rows[2][256]    ; two rows of projected terrain grid points (ping-pong)
 0x19ff uint16_t terrain_row_cur           ; row being filled, 0 or 1 (the original: byte offset 0 or 0xa00)
 0x1a01 uint16_t terrain_row_prev
-0x1a45 uint16_t seg_heightmap             ; 256x256 heights (GS in the original)
-0x1a47 uint16_t seg_colormap              ; 256x256 colour/surface (FS)
-0x1a49 uint16_t seg_textures
-0x1a4b uint16_t seg_maptex
 0x1a4d uint8_t  palette[768]
 0x1d51 uint8_t  fog_table[17][256]        ; [distance/256][colour] -> colour
 0x2e51 uint8_t  shade_table[16][256]      ; [level][colour] -> colour (translucency)
 0x3e51 uint16_t particle_count            ; live particles (the original counted bytes)
 0x3e53 Particle particles[200]
 0x5bba int16_t  num_cars
-0xdb10 uint16_t seg_screen                ; 320x200 8-bit framebuffer
 0xdb12 uint16_t poly_color                ; colour for flat polygons (two copies of the byte)
 0xdb14 PolyBuf  poly_buf[2]               ; [0] polygon being drawn, [1] scratch for clipping
 0xdbb8 int16_t  screen_cx                 ; projection centre

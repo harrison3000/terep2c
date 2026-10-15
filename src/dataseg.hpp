@@ -25,17 +25,12 @@ struct DataSeg {
     ProjVertex terrain_rows[2][256];         /* 05ff: two rows of projected terrain grid points (ping-pong) */
     uint16_t terrain_row_cur;                /* 19ff: row being filled, 0 or 1 (the original: byte offset 0 or 0xa00) */
     uint16_t terrain_row_prev;               /* 1a01 */
-    uint16_t seg_heightmap;                  /* 1a45: 256x256 heights (GS in the original) */
-    uint16_t seg_colormap;                   /* 1a47: 256x256 colour/surface (FS) */
-    uint16_t seg_textures;                   /* 1a49 */
-    uint16_t seg_maptex;                     /* 1a4b */
     uint8_t palette[768];                    /* 1a4d */
     uint8_t fog_table[17][256];              /* 1d51: [distance/256][colour] -> colour */
     uint8_t shade_table[16][256];            /* 2e51: [level][colour] -> colour (translucency) */
     uint16_t particle_count;                 /* 3e51: live particles (the original counted bytes) */
     Particle particles[200];                 /* 3e53 */
     int16_t num_cars;                        /* 5bba */
-    uint16_t seg_screen;                     /* db10: 320x200 8-bit framebuffer */
     uint16_t poly_color;                     /* db12: colour for flat polygons (two copies of the byte) */
     PolyBuf poly_buf[2];                     /* db14: [0] polygon being drawn, [1] scratch for clipping */
     int16_t screen_cx;                       /* dbb8: projection centre */
