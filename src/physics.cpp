@@ -420,7 +420,6 @@ void Car::ground_contact(CarVertex &v, uint16_t index)
 
     int32_t speed;
     Vec3 dir = wheel_direction(index, &speed, mulq31(v.vel.z, n2s()));
-    G->tmp_wheel_dir = dir;
     contact.wheel_speed = -speed;
     Angle heading = wheel_heading(dir);
     contact.slip_cos = fx_cos(heading).q31();

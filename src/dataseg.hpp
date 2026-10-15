@@ -6,9 +6,7 @@ struct PACKED DataSeg {
     char subtitle_text[31];                  /* 004b: "WORK-IN-PROGRESS DEMO VERSION" */
     int32_t gravity;                         /* 006a: added to every vertex's vz each tick ([ and ] change it) */
     uint8_t sim_running;                     /* 006e: set to 1 once loading succeeded */
-    uint16_t sound_init_dx;                  /* 006f: write-only leftovers of the sound init */
-    uint16_t sound_init_ax;                  /* 0071 */
-    uint8_t _pad_0073[0xa];
+    uint8_t _pad_006f[0xe];
     uint8_t split_screen;                    /* 007d: F9 */
     uint8_t cam_mode[2];                     /* 007e: per player view, 0..4 (F1..F5 / F6) */
     ChaseCam chase_cam[2];                   /* 0080: free-floating camera state, one per player */
@@ -28,9 +26,9 @@ struct PACKED DataSeg {
     uint8_t _pad_0122[0x4];
     ProjVertex car_proj[100];                /* 0126: car vertices transformed to camera space */
     uint8_t car_uv_table[200];               /* 050e: texture coordinates used by model opcode 7 */
-    int16_t tmp_wheel_axes[4];               /* 05d6: wheel sprite half-axes */
+    uint8_t _pad_05d6[0x8];
     int16_t wheel_sector_limits[8];          /* 05de: picks one of 9 wheel sprites by view angle */
-    uint8_t unk_05ee;                        /* 05ee */
+    uint8_t _pad_05ee[0x1];
     int16_t view_reach;                      /* 05ef: frustum shape for the visible-terrain hexagon */
     int16_t view_side_a;                     /* 05f1 */
     int16_t view_side_b;                     /* 05f3 */
@@ -38,8 +36,7 @@ struct PACKED DataSeg {
     int16_t yaw_sin7;                        /* 05f7: sin(yaw) >> 7 */
     int16_t yaw_cos7;                        /* 05f9: cos(yaw) >> 7 */
     uint8_t terrain_swap_xy;                 /* 05fb: terrain is traversed column-major */
-    uint8_t tmp_cell_color;                  /* 05fc */
-    uint16_t tmp_cell;                       /* 05fd */
+    uint8_t _pad_05fc[0x3];
     ProjVertex terrain_rows[2][256];         /* 05ff: two rows of projected terrain grid points (ping-pong) */
     uint16_t terrain_row_cur;                /* 19ff: byte offset (0 or 0xa00) of the row being filled */
     uint16_t terrain_row_prev;               /* 1a01 */
@@ -55,7 +52,7 @@ struct PACKED DataSeg {
     uint16_t seg_textures;                   /* 1a49 */
     uint16_t seg_maptex;                     /* 1a4b */
     uint8_t palette[768];                    /* 1a4d */
-    uint32_t tmp_terrain_uv;                 /* 1d4d */
+    uint8_t _pad_1d4d[0x4];
     uint8_t fog_table[17][256];              /* 1d51: [distance/256][colour] -> colour */
     uint8_t shade_table[16][256];            /* 2e51: [level][colour] -> colour (translucency) */
     uint16_t particle_bytes;                 /* 3e51: number of live particles * sizeof(Particle) */
@@ -63,18 +60,15 @@ struct PACKED DataSeg {
     uint8_t _pad_5433[0x620];
     uint16_t smoke_sprite[16];               /* 5a53: DS offsets of the smoke quads, by particle kind >> 4 */
     SpriteQuad smoke_quad[4];                /* 5a73 */
-    uint8_t _pad_5abb[0x6];
-    int16_t tmp_tri[12];                     /* 5ac1 */
+    uint8_t _pad_5abb[0x1e];
     uint8_t car_keys[5][6];                  /* 5ad9: accel, brake, left, right, handbrake, spare */
     uint16_t car_dat_name[5];                /* 5af7: DS offsets of "car1.dat".."car5.dat" */
     char car_dat_names[45];                  /* 5b01 */
     uint16_t car_pcx_name[5];                /* 5b2e */
     char car_pcx_names[45];                  /* 5b38 */
-    uint8_t unk_5b65[85];                    /* 5b65 */
+    uint8_t _pad_5b65[0x55];
     int16_t num_cars;                        /* 5bba */
-    uint16_t car_ofs[10];                    /* 5bbc: DS offset of each loaded car (cars are stored back to back) */
-    uint8_t car_pool[30000];                 /* 5bd0: where the original kept the car files; empty here (see car_file.cpp) */
-    int16_t tmp_trig[6];                     /* d100 */
+    uint8_t _pad_5bbc[0x7550];
     int16_t sin_table[1025];                 /* d10c: sin of 0..90 deg, Q15 */
     uint16_t atan_table[257];                /* d90e: atan(i/256), binary degrees */
     uint16_t seg_screen;                     /* db10: 320x200 8-bit framebuffer */
@@ -88,11 +82,7 @@ struct PACKED DataSeg {
     int16_t clip_right;                      /* dbc2 */
     int16_t span_top;                        /* dbc4 */
     int16_t span_bottom;                     /* dbc6 */
-    ScanEdge span_x[200];                    /* dbc8: unused: left/right x per scanline (raster.cpp's span_x) */
-    ScanEdge span_a[200];                    /* dee8: unused: first attribute (u or shade) per scanline (span_a) */
-    ScanEdge span_b[200];                    /* e208: unused: second attribute (v) per scanline (span_b) */
-    uint16_t tmp_clip_count;                 /* e528 */
-    uint8_t unk_e52a[6];                     /* e52a */
+    uint8_t _pad_dbc8[0x968];
     PointBuf vis_buf[2];                     /* e530: visible-terrain hexagon in map cells, [1] = clipping scratch */
     int16_t vis_lo;                          /* e584: map rectangle the hexagon is clipped to */
     int16_t vis_hi;                          /* e586 */
@@ -101,30 +91,13 @@ struct PACKED DataSeg {
     int16_t vis_row_first;                   /* e58c: first map row with visible cells */
     int16_t vis_row_last;                    /* e58e */
     ScanEdge vis_span[256];                  /* e590: first/last visible column of every map row */
-    int16_t tmp_near_clip[4];                /* e990: near-plane clipper state (previous point) */
-    int16_t unk_e998[4];                     /* e998 */
+    uint8_t _pad_e990[0x10];
     int32_t ground_n1[2];                    /* e9a0: contact frame (Q31 sin/cos pairs, low word 0) */
     int32_t ground_n2[2];                    /* e9a8 */
-    Vec3 tmp_wheel_dir;                      /* e9b0 */
-    uint16_t tmp_slip_angle;                 /* e9bc */
-    int32_t tmp_slip_sin;                    /* e9be */
-    int32_t tmp_slip_cos;                    /* e9c2 */
-    int16_t tmp_ground_z;                    /* e9c6 */
-    int32_t tmp_penetration;                 /* e9c8 */
-    int32_t tmp_slide[2];                    /* e9cc */
-    uint16_t tmp_vertex_left;                /* e9d4 */
-    uint16_t tmp_vertex_index;               /* e9d6 */
-    uint16_t tmp_vertices;                   /* e9d8 */
-    int32_t tmp_wheel_speed;                 /* e9da */
-    uint8_t _pad_e9de[0x4];
+    uint8_t _pad_e9b0[0x32];
     int16_t spring_break_stretch;            /* e9e2: sim.cfg */
     int16_t spring_break_squash;             /* e9e4 */
-    uint16_t tmp_springs_left;               /* e9e6 */
-    uint8_t _pad_e9e8[0x10];
-    int32_t tmp_spring_d[3];                 /* e9f8 */
-    uint16_t tmp_spring_flags;               /* ea04 */
-    uint8_t _pad_ea06[0x6];
-    int16_t tmp_ground[12];                  /* ea0c */
+    uint8_t _pad_e9e6[0x3e];
     int16_t ground_slope_x;                  /* ea24 */
     int16_t ground_slope_y;                  /* ea26 */
     uint8_t ground_surface;                  /* ea28: colour-map byte under the last tested point */
@@ -136,9 +109,7 @@ struct PACKED DataSeg {
     Pos hull_point[16];                      /* eb5b: and a point on each */
     uint16_t hull_tri_count;                 /* ec1b */
     uint16_t hull_tri[7][3];                 /* ec1d: car vertices forming the collision hull */
-    uint8_t _pad_ec47[0x9];
-    uint16_t unk_ec50;                       /* ec50 */
-    uint8_t _pad_ec52[0x66];
+    uint8_t _pad_ec47[0x71];
     uint8_t sfx_engine_patch[33];            /* ecb8 */
     uint8_t sfx_hit_patch[62];               /* ecd9 */
     uint16_t font_offset[128];               /* ed17: per character, relative to font_glyphs */
@@ -156,8 +127,6 @@ static_assert(offsetof(DataSeg, title_text) == 0x0000, "title_text");
 static_assert(offsetof(DataSeg, subtitle_text) == 0x004b, "subtitle_text");
 static_assert(offsetof(DataSeg, gravity) == 0x006a, "gravity");
 static_assert(offsetof(DataSeg, sim_running) == 0x006e, "sim_running");
-static_assert(offsetof(DataSeg, sound_init_dx) == 0x006f, "sound_init_dx");
-static_assert(offsetof(DataSeg, sound_init_ax) == 0x0071, "sound_init_ax");
 static_assert(offsetof(DataSeg, split_screen) == 0x007d, "split_screen");
 static_assert(offsetof(DataSeg, cam_mode) == 0x007e, "cam_mode");
 static_assert(offsetof(DataSeg, chase_cam) == 0x0080, "chase_cam");
@@ -173,9 +142,7 @@ static_assert(offsetof(DataSeg, chase_distance) == 0x011e, "chase_distance");
 static_assert(offsetof(DataSeg, near_clip) == 0x0120, "near_clip");
 static_assert(offsetof(DataSeg, car_proj) == 0x0126, "car_proj");
 static_assert(offsetof(DataSeg, car_uv_table) == 0x050e, "car_uv_table");
-static_assert(offsetof(DataSeg, tmp_wheel_axes) == 0x05d6, "tmp_wheel_axes");
 static_assert(offsetof(DataSeg, wheel_sector_limits) == 0x05de, "wheel_sector_limits");
-static_assert(offsetof(DataSeg, unk_05ee) == 0x05ee, "unk_05ee");
 static_assert(offsetof(DataSeg, view_reach) == 0x05ef, "view_reach");
 static_assert(offsetof(DataSeg, view_side_a) == 0x05f1, "view_side_a");
 static_assert(offsetof(DataSeg, view_side_b) == 0x05f3, "view_side_b");
@@ -183,8 +150,6 @@ static_assert(offsetof(DataSeg, fog_start) == 0x05f5, "fog_start");
 static_assert(offsetof(DataSeg, yaw_sin7) == 0x05f7, "yaw_sin7");
 static_assert(offsetof(DataSeg, yaw_cos7) == 0x05f9, "yaw_cos7");
 static_assert(offsetof(DataSeg, terrain_swap_xy) == 0x05fb, "terrain_swap_xy");
-static_assert(offsetof(DataSeg, tmp_cell_color) == 0x05fc, "tmp_cell_color");
-static_assert(offsetof(DataSeg, tmp_cell) == 0x05fd, "tmp_cell");
 static_assert(offsetof(DataSeg, terrain_rows) == 0x05ff, "terrain_rows");
 static_assert(offsetof(DataSeg, terrain_row_cur) == 0x19ff, "terrain_row_cur");
 static_assert(offsetof(DataSeg, terrain_row_prev) == 0x1a01, "terrain_row_prev");
@@ -200,24 +165,18 @@ static_assert(offsetof(DataSeg, seg_colormap) == 0x1a47, "seg_colormap");
 static_assert(offsetof(DataSeg, seg_textures) == 0x1a49, "seg_textures");
 static_assert(offsetof(DataSeg, seg_maptex) == 0x1a4b, "seg_maptex");
 static_assert(offsetof(DataSeg, palette) == 0x1a4d, "palette");
-static_assert(offsetof(DataSeg, tmp_terrain_uv) == 0x1d4d, "tmp_terrain_uv");
 static_assert(offsetof(DataSeg, fog_table) == 0x1d51, "fog_table");
 static_assert(offsetof(DataSeg, shade_table) == 0x2e51, "shade_table");
 static_assert(offsetof(DataSeg, particle_bytes) == 0x3e51, "particle_bytes");
 static_assert(offsetof(DataSeg, particles) == 0x3e53, "particles");
 static_assert(offsetof(DataSeg, smoke_sprite) == 0x5a53, "smoke_sprite");
 static_assert(offsetof(DataSeg, smoke_quad) == 0x5a73, "smoke_quad");
-static_assert(offsetof(DataSeg, tmp_tri) == 0x5ac1, "tmp_tri");
 static_assert(offsetof(DataSeg, car_keys) == 0x5ad9, "car_keys");
 static_assert(offsetof(DataSeg, car_dat_name) == 0x5af7, "car_dat_name");
 static_assert(offsetof(DataSeg, car_dat_names) == 0x5b01, "car_dat_names");
 static_assert(offsetof(DataSeg, car_pcx_name) == 0x5b2e, "car_pcx_name");
 static_assert(offsetof(DataSeg, car_pcx_names) == 0x5b38, "car_pcx_names");
-static_assert(offsetof(DataSeg, unk_5b65) == 0x5b65, "unk_5b65");
 static_assert(offsetof(DataSeg, num_cars) == 0x5bba, "num_cars");
-static_assert(offsetof(DataSeg, car_ofs) == 0x5bbc, "car_ofs");
-static_assert(offsetof(DataSeg, car_pool) == 0x5bd0, "car_pool");
-static_assert(offsetof(DataSeg, tmp_trig) == 0xd100, "tmp_trig");
 static_assert(offsetof(DataSeg, sin_table) == 0xd10c, "sin_table");
 static_assert(offsetof(DataSeg, atan_table) == 0xd90e, "atan_table");
 static_assert(offsetof(DataSeg, seg_screen) == 0xdb10, "seg_screen");
@@ -231,11 +190,6 @@ static_assert(offsetof(DataSeg, clip_left) == 0xdbc0, "clip_left");
 static_assert(offsetof(DataSeg, clip_right) == 0xdbc2, "clip_right");
 static_assert(offsetof(DataSeg, span_top) == 0xdbc4, "span_top");
 static_assert(offsetof(DataSeg, span_bottom) == 0xdbc6, "span_bottom");
-static_assert(offsetof(DataSeg, span_x) == 0xdbc8, "span_x");
-static_assert(offsetof(DataSeg, span_a) == 0xdee8, "span_a");
-static_assert(offsetof(DataSeg, span_b) == 0xe208, "span_b");
-static_assert(offsetof(DataSeg, tmp_clip_count) == 0xe528, "tmp_clip_count");
-static_assert(offsetof(DataSeg, unk_e52a) == 0xe52a, "unk_e52a");
 static_assert(offsetof(DataSeg, vis_buf) == 0xe530, "vis_buf");
 static_assert(offsetof(DataSeg, vis_lo) == 0xe584, "vis_lo");
 static_assert(offsetof(DataSeg, vis_hi) == 0xe586, "vis_hi");
@@ -244,27 +198,10 @@ static_assert(offsetof(DataSeg, vis_max) == 0xe58a, "vis_max");
 static_assert(offsetof(DataSeg, vis_row_first) == 0xe58c, "vis_row_first");
 static_assert(offsetof(DataSeg, vis_row_last) == 0xe58e, "vis_row_last");
 static_assert(offsetof(DataSeg, vis_span) == 0xe590, "vis_span");
-static_assert(offsetof(DataSeg, tmp_near_clip) == 0xe990, "tmp_near_clip");
-static_assert(offsetof(DataSeg, unk_e998) == 0xe998, "unk_e998");
 static_assert(offsetof(DataSeg, ground_n1) == 0xe9a0, "ground_n1");
 static_assert(offsetof(DataSeg, ground_n2) == 0xe9a8, "ground_n2");
-static_assert(offsetof(DataSeg, tmp_wheel_dir) == 0xe9b0, "tmp_wheel_dir");
-static_assert(offsetof(DataSeg, tmp_slip_angle) == 0xe9bc, "tmp_slip_angle");
-static_assert(offsetof(DataSeg, tmp_slip_sin) == 0xe9be, "tmp_slip_sin");
-static_assert(offsetof(DataSeg, tmp_slip_cos) == 0xe9c2, "tmp_slip_cos");
-static_assert(offsetof(DataSeg, tmp_ground_z) == 0xe9c6, "tmp_ground_z");
-static_assert(offsetof(DataSeg, tmp_penetration) == 0xe9c8, "tmp_penetration");
-static_assert(offsetof(DataSeg, tmp_slide) == 0xe9cc, "tmp_slide");
-static_assert(offsetof(DataSeg, tmp_vertex_left) == 0xe9d4, "tmp_vertex_left");
-static_assert(offsetof(DataSeg, tmp_vertex_index) == 0xe9d6, "tmp_vertex_index");
-static_assert(offsetof(DataSeg, tmp_vertices) == 0xe9d8, "tmp_vertices");
-static_assert(offsetof(DataSeg, tmp_wheel_speed) == 0xe9da, "tmp_wheel_speed");
 static_assert(offsetof(DataSeg, spring_break_stretch) == 0xe9e2, "spring_break_stretch");
 static_assert(offsetof(DataSeg, spring_break_squash) == 0xe9e4, "spring_break_squash");
-static_assert(offsetof(DataSeg, tmp_springs_left) == 0xe9e6, "tmp_springs_left");
-static_assert(offsetof(DataSeg, tmp_spring_d) == 0xe9f8, "tmp_spring_d");
-static_assert(offsetof(DataSeg, tmp_spring_flags) == 0xea04, "tmp_spring_flags");
-static_assert(offsetof(DataSeg, tmp_ground) == 0xea0c, "tmp_ground");
 static_assert(offsetof(DataSeg, ground_slope_x) == 0xea24, "ground_slope_x");
 static_assert(offsetof(DataSeg, ground_slope_y) == 0xea26, "ground_slope_y");
 static_assert(offsetof(DataSeg, ground_surface) == 0xea28, "ground_surface");
@@ -276,7 +213,6 @@ static_assert(offsetof(DataSeg, hull_normal) == 0xea9b, "hull_normal");
 static_assert(offsetof(DataSeg, hull_point) == 0xeb5b, "hull_point");
 static_assert(offsetof(DataSeg, hull_tri_count) == 0xec1b, "hull_tri_count");
 static_assert(offsetof(DataSeg, hull_tri) == 0xec1d, "hull_tri");
-static_assert(offsetof(DataSeg, unk_ec50) == 0xec50, "unk_ec50");
 static_assert(offsetof(DataSeg, sfx_engine_patch) == 0xecb8, "sfx_engine_patch");
 static_assert(offsetof(DataSeg, sfx_hit_patch) == 0xecd9, "sfx_hit_patch");
 static_assert(offsetof(DataSeg, font_offset) == 0xed17, "font_offset");

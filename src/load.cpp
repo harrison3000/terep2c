@@ -179,12 +179,10 @@ static uint16_t &ds_word(size_t ofs)
 
 /* Cars are loaded until a carN.dat is missing, lined up along y = 0x7a00
  * every 256 units of x.  The name tables hold 5 entries; a sixth car would
- * take its name from the bytes after them.  car_ofs still records where
- * the original would have put each car in car_pool (back to back). */
+ * take its name from the bytes after them. */
 static void load_cars()
 {
     G->num_cars = 0;
-    G->car_ofs[0] = (uint16_t)offsetof(DataSeg, car_pool);
     for (int i = 0; i < (int)(sizeof cars / sizeof cars[0]); i++) {
         /* read through ds_ptr: i can run past the 5-entry tables */
         const char *dat = (const char *)ds_ptr(ds_word(offsetof(DataSeg, car_dat_name) + 2 * i));
@@ -196,8 +194,6 @@ static void load_cars()
         find_ref_vertex(car);
         load_car_skin(car, pcx);
         G->num_cars++;
-        if (i + 1 < (int)(sizeof G->car_ofs / sizeof G->car_ofs[0]))
-            G->car_ofs[i + 1] = (uint16_t)(G->car_ofs[i] + size);
     }
 }
 
@@ -215,7 +211,6 @@ int game_init()
     hires_screen = nullptr;
 
     G->num_cars = -2;
-    G->unk_ec50 = 0x78;
     G->gravity = 0x1800;
     G->spring_break_stretch = 0x800;
     G->spring_break_squash = (int16_t)0xf000;

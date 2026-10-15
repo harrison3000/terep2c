@@ -1,14 +1,13 @@
 ; Layout of the original 64 KB data segment (memdumps/data.bin + runtime state).
 ; OFFSET TYPE NAME[COUNT] ; comment
-; Names with a "tmp_" prefix are scratch variables of the original code that
-; the port keeps in locals; they stay here only to document the layout.
+; Only what the port uses is listed; the holes are padding.  What was there in
+; the original (scratch variables kept in locals here, the cars' pool, the
+; scanline tables, leftovers of the DOS version) is in the git history of this file.
 
 0x0000 char     title_text[0x4b]          ; "-DEFORMERS- ATOMIC VEHICLE SIMULATION SYSTEM ..."
 0x004b char     subtitle_text[0x1f]       ; "WORK-IN-PROGRESS DEMO VERSION"
 0x006a int32_t  gravity                   ; added to every vertex's vz each tick ([ and ] change it)
 0x006e uint8_t  sim_running               ; set to 1 once loading succeeded
-0x006f uint16_t sound_init_dx             ; write-only leftovers of the sound init
-0x0071 uint16_t sound_init_ax
 0x007d uint8_t  split_screen              ; F9
 0x007e uint8_t  cam_mode[2]               ; per player view, 0..4 (F1..F5 / F6)
 0x0080 ChaseCam chase_cam[2]              ; free-floating camera state, one per player
@@ -24,9 +23,7 @@
 0x0120 int16_t  near_clip                 ; points closer than this are not projected
 0x0126 ProjVertex car_proj[100]           ; car vertices transformed to camera space
 0x050e uint8_t  car_uv_table[0xc8]        ; texture coordinates used by model opcode 7
-0x05d6 int16_t  tmp_wheel_axes[4]         ; wheel sprite half-axes
 0x05de int16_t  wheel_sector_limits[8]    ; picks one of 9 wheel sprites by view angle
-0x05ee uint8_t  unk_05ee
 0x05ef int16_t  view_reach                ; frustum shape for the visible-terrain hexagon
 0x05f1 int16_t  view_side_a
 0x05f3 int16_t  view_side_b
@@ -34,8 +31,6 @@
 0x05f7 int16_t  yaw_sin7                  ; sin(yaw) >> 7
 0x05f9 int16_t  yaw_cos7                  ; cos(yaw) >> 7
 0x05fb uint8_t  terrain_swap_xy           ; terrain is traversed column-major
-0x05fc uint8_t  tmp_cell_color
-0x05fd uint16_t tmp_cell
 0x05ff ProjVertex terrain_rows[2][256]    ; two rows of projected terrain grid points (ping-pong)
 0x19ff uint16_t terrain_row_cur           ; byte offset (0 or 0xa00) of the row being filled
 0x1a01 uint16_t terrain_row_prev
@@ -51,24 +46,18 @@
 0x1a49 uint16_t seg_textures
 0x1a4b uint16_t seg_maptex
 0x1a4d uint8_t  palette[768]
-0x1d4d uint32_t tmp_terrain_uv
 0x1d51 uint8_t  fog_table[17][256]        ; [distance/256][colour] -> colour
 0x2e51 uint8_t  shade_table[16][256]      ; [level][colour] -> colour (translucency)
 0x3e51 uint16_t particle_bytes            ; number of live particles * sizeof(Particle)
 0x3e53 Particle particles[200]
 0x5a53 uint16_t smoke_sprite[16]          ; DS offsets of the smoke quads, by particle kind >> 4
 0x5a73 SpriteQuad smoke_quad[4]
-0x5ac1 int16_t  tmp_tri[12]
 0x5ad9 uint8_t  car_keys[5][6]            ; accel, brake, left, right, handbrake, spare
 0x5af7 uint16_t car_dat_name[5]           ; DS offsets of "car1.dat".."car5.dat"
 0x5b01 char     car_dat_names[45]
 0x5b2e uint16_t car_pcx_name[5]
 0x5b38 char     car_pcx_names[45]
-0x5b65 uint8_t  unk_5b65[0x55]
 0x5bba int16_t  num_cars
-0x5bbc uint16_t car_ofs[10]               ; DS offset of each loaded car (cars are stored back to back)
-0x5bd0 uint8_t  car_pool[0x7530]          ; where the original kept the car files; empty here (see car_file.cpp)
-0xd100 int16_t  tmp_trig[6]
 0xd10c int16_t  sin_table[1025]           ; sin of 0..90 deg, Q15
 0xd90e uint16_t atan_table[257]           ; atan(i/256), binary degrees
 0xdb10 uint16_t seg_screen                ; 320x200 8-bit framebuffer
@@ -82,11 +71,6 @@
 0xdbc2 int16_t  clip_right
 0xdbc4 int16_t  span_top
 0xdbc6 int16_t  span_bottom
-0xdbc8 ScanEdge span_x[200]               ; unused: left/right x per scanline (raster.cpp's span_x)
-0xdee8 ScanEdge span_a[200]               ; unused: first attribute (u or shade) per scanline (span_a)
-0xe208 ScanEdge span_b[200]               ; unused: second attribute (v) per scanline (span_b)
-0xe528 uint16_t tmp_clip_count
-0xe52a uint8_t  unk_e52a[6]
 0xe530 PointBuf vis_buf[2]                ; visible-terrain hexagon in map cells, [1] = clipping scratch
 0xe584 int16_t  vis_lo                    ; map rectangle the hexagon is clipped to
 0xe586 int16_t  vis_hi
@@ -95,27 +79,10 @@
 0xe58c int16_t  vis_row_first             ; first map row with visible cells
 0xe58e int16_t  vis_row_last
 0xe590 ScanEdge vis_span[256]             ; first/last visible column of every map row
-0xe990 int16_t  tmp_near_clip[4]          ; near-plane clipper state (previous point)
-0xe998 int16_t  unk_e998[4]
 0xe9a0 int32_t  ground_n1[2]              ; contact frame (Q31 sin/cos pairs, low word 0)
 0xe9a8 int32_t  ground_n2[2]
-0xe9b0 Vec3     tmp_wheel_dir
-0xe9bc uint16_t tmp_slip_angle
-0xe9be int32_t  tmp_slip_sin
-0xe9c2 int32_t  tmp_slip_cos
-0xe9c6 int16_t  tmp_ground_z
-0xe9c8 int32_t  tmp_penetration
-0xe9cc int32_t  tmp_slide[2]
-0xe9d4 uint16_t tmp_vertex_left
-0xe9d6 uint16_t tmp_vertex_index
-0xe9d8 uint16_t tmp_vertices
-0xe9da int32_t  tmp_wheel_speed
 0xe9e2 int16_t  spring_break_stretch      ; sim.cfg
 0xe9e4 int16_t  spring_break_squash
-0xe9e6 uint16_t tmp_springs_left
-0xe9f8 int32_t  tmp_spring_d[3]
-0xea04 uint16_t tmp_spring_flags
-0xea0c int16_t  tmp_ground[12]
 0xea24 int16_t  ground_slope_x
 0xea26 int16_t  ground_slope_y
 0xea28 uint8_t  ground_surface            ; colour-map byte under the last tested point
@@ -127,7 +94,6 @@
 0xeb5b Pos      hull_point[16]            ; and a point on each
 0xec1b uint16_t hull_tri_count
 0xec1d uint16_t hull_tri[7][3]            ; car vertices forming the collision hull
-0xec50 uint16_t unk_ec50
 0xecb8 uint8_t  sfx_engine_patch[0x21]
 0xecd9 uint8_t  sfx_hit_patch[0x3e]
 0xed17 uint16_t font_offset[128]          ; per character, relative to font_glyphs

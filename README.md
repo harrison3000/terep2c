@@ -230,10 +230,12 @@ was fixed in `Car::jump`.
 The initial contents of the segment, which the original read from `data.bin`, are written by
 `dataseg_init()` (`src/dataseg_init.cpp`): texts and file names as strings, the font read from
 `src/font.pbm` (embedded in the executable with `#embed`), the surface, key and hull tables as
-arrays, the sine and atan tables computed (the original's atan table was made with π typed as
-3.14169; one entry, a rounding tie, is set by hand). DOS leftovers that nothing reads (XMS messages, an old sound sequence) are still
-there: the segment came out byte for byte identical to the original while the tests compared it
-with the asm (see Verification).
+arrays, the sine and atan tables computed (the atan table with a slightly wrong π, 3.141688765,
+which gives exactly the original's). Only what the port uses is still in the segment: the
+original's scratch variables (kept in locals here), the cars' pool, the scanline tables and the
+DOS version's leftovers are gone, and their offsets are padding. Until then the segment came out
+byte for byte identical to the original, which the old tests compared with the asm (see
+Verification).
 
 ## Verification
 
