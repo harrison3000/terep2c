@@ -22,6 +22,7 @@ make sdl        # terep2vibed: playable SDL2 + OpenGL 3.3 version (needs libsdl2
 make test       # runs the recorded scenarios and compares them with the reference
 make -j8 all sdl  # in parallel: each source is its own object in build/, rebuilt when its headers change
 make coverage  # which lines of src/ the tests run (clang/LLVM): summary, and build/cov/html
+make coverage REPLAY="rec/dir data/Map"  # the same for one recording only
 ./terep2vibed       # opens the map chooser, starting in the current directory
 ./terep2vibed data/Asphalt
 ./terep2vibed -s 4    # renders at 1280x800 (scale 1 to 8)

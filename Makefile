@@ -2,7 +2,7 @@
 #   make            headless test host, terep2-headless (no dependencies)
 #   make sdl        SDL2 version (needs SDL2 development files and the host/imgui submodule)
 #   make test       compare the headless host with the recorded reference
-#   make coverage   which lines of src/ the tests run (clang/LLVM), [REPLAY="recdir mapdir"]
+#   make coverage   which lines of src/ the tests run (clang/LLVM); REPLAY="recdir mapdir": a recording's
 #   make -j8 ...    in parallel: every file is its own object in build/
 CXX      ?= c++
 CXXFLAGS ?= -O2 -g
@@ -79,9 +79,9 @@ terep2vibed: $(GAME_OBJ) $(HOST_OBJ) $(SDL_OBJ) $(IMGUI_OBJ) build/opl3.o build/
 test: terep2-headless
 	sh tests/run_tests.sh
 
-# Coverage of the game's code by the tests: the headless host built with clang's source-based
-# coverage in build/cov, the tests (pass or not), one game at 3x and, with
-# REPLAY="recdir mapdir", a recording.  Summary on the terminal, report in build/cov/html.
+# Coverage of the game's code: the headless host built with clang's source-based coverage in
+# build/cov, then the tests (pass or not) and one game at 3x, or with REPLAY="recdir mapdir"
+# only that recording.  Summary on the terminal, report in build/cov/html.
 COV_CXX       ?= clang++
 LLVM_PROFDATA ?= llvm-profdata
 LLVM_COV      ?= llvm-cov
@@ -104,9 +104,12 @@ build/cov/terep2-headless: $(COV_OBJ)
 
 coverage: build/cov/terep2-headless
 	rm -rf build/cov/prof build/cov/html
+ifdef REPLAY
+	-$(COV_RUN) build/cov/terep2-headless -C $(REPLAY) | tail -1
+else
 	-$(COV_RUN) sh tests/run_tests.sh build/cov/terep2-headless
 	$(COV_RUN) build/cov/terep2-headless -s 3 data/Asphalt 600 "$$(cat tests/ref/cenario.txt)" > /dev/null
-	$(if $(REPLAY),-$(COV_RUN) build/cov/terep2-headless -C $(REPLAY) | tail -1)
+endif
 	$(LLVM_PROFDATA) merge -o build/cov/all.profdata build/cov/prof/*.profraw
 	$(LLVM_COV) report $(COV_SHOW)
 	$(LLVM_COV) show $(COV_SHOW) -format=html -show-branches=count -output-dir=build/cov/html > /dev/null
