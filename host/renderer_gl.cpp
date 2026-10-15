@@ -101,7 +101,7 @@ bool opengl_start()
 
     for(int i = 0; i < 5; i++){
         carros[i].id = -1;
-        if(i >= G->num_cars){
+        if(i >= world.num_cars){
             continue;
         }
 
@@ -160,13 +160,13 @@ static void game_keys()
 {
     switch (keys[0]) {
     case 0x0f:{                             // Tab: next car for view 1
-        G->player_car[0]++;
-        if (G->player_car[0] >= (uint16_t)G->num_cars){
-            G->player_car[0] = 0;
+        world.player_car[0]++;
+        if (world.player_car[0] >= (uint16_t)world.num_cars){
+            world.player_car[0] = 0;
         }
-        G->player_car[1] = G->player_car[0];
+        world.player_car[1] = world.player_car[0];
         #ifdef TEREP2_GLR
-        auto c = carros[G->player_car[0]];
+        auto c = carros[world.player_car[0]];
         rzSetCameraTarget(ctx, c.id, c.camera_pt);
         currTgt = c.id;
         #endif
@@ -175,7 +175,7 @@ static void game_keys()
     case 63:{ //F5: overview
         #ifdef TEREP2_GLR
         if(currTgt == -1){
-            auto c = carros[G->player_car[0]];
+            auto c = carros[world.player_car[0]];
             rzSetCameraTarget(ctx, c.id, c.camera_pt);
             currTgt = c.id;
         }else{
@@ -186,10 +186,10 @@ static void game_keys()
         break;
     }
     case 0x1a:                              // [ and ]: gravity
-        G->gravity += 50;
+        world.gravity += 50;
         break;
     case 0x1b:
-        G->gravity -= 50;
+        world.gravity -= 50;
         break;
     }
     keys[0] = 0;
@@ -201,7 +201,7 @@ bool opengl_frame(int win_w, int win_h, PictureRect *where)
         use_lib();                          // game_keys calls the library too
     #endif
     game_keys();
-    engine_sound(G->player_car[0], 0);      // what draw_view does for the sound
+    engine_sound(world.player_car[0], 0);      // what draw_view does for the sound
 
     #ifdef TEREP2_GLR
         if(broke_some_ice){
@@ -396,12 +396,12 @@ static int isLine(uint16_t vertx[], int n){
 }
 
 static void updateSprites(){
-    auto n_sprites = G->particle_count;
+    auto n_sprites = world.particle_count;
 
     RzSprite spr[256];
 
     for(int i = 0; i < n_sprites && i < 256; i++){
-        auto s = G->particles[i];
+        auto s = world.particles[i];
         auto ds = &spr[i];
         
         ds[0] = {

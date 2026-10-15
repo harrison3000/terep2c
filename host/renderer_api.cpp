@@ -1,4 +1,4 @@
-// The files of the loaded map, by the names the game uses (its data segment).
+// The files of the loaded map, by the names the game uses (fname_*, car_dat_name...).
 #include <filesystem>
 #include "renderer_api.hpp"
 #include "voxel_preview.hpp"            // find_file_nocase
@@ -18,7 +18,7 @@ MapFiles map_files(const std::string &dir)
     f.textures = find(fname_textures);
     f.fog = find(fname_fog);
     f.smoke = find(fname_smoke);
-    for (int i = 0; i < G->num_cars; i++) {
+    for (int i = 0; i < world.num_cars; i++) {
         MapFiles::Car c;
         c.dat = find(car_dat_name(i));
         if (!car_get(i).skin.empty())

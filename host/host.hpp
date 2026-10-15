@@ -2,12 +2,11 @@
 #pragma once
 #include "../src/terep.hpp"
 
-// Allocate the data segment and fill it with its initial contents.
-// Returns false (after printing why) on failure.
-bool host_init_dataseg();
+// Put the game's state back as at the start of the program (before game_init).
+bool host_init_state();
 
-// Free the data segment and the segments, to start a new game (a new
-// host_init_dataseg and game_init) in the same process.
+// Free what a game allocated, to start a new one (host_init_state and
+// game_init again) in the same process.
 void host_free_game();
 
 // Run one display frame of the original timing: two physics ticks
@@ -15,4 +14,4 @@ void host_free_game();
 bool host_step();
 
 // RGB of palette entry i (the PCX palette, 8 bits per channel).
-inline const uint8_t *host_palette(uint8_t i) { return &G->palette[i * 3]; }
+inline const uint8_t *host_palette(uint8_t i) { return &map_tables.palette[i * 3]; }

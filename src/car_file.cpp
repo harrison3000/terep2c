@@ -13,9 +13,7 @@
  *   0x84  the sections, normally in the order above
  *
  * The original copied the file into the data segment and used it in place,
- * so the header doubles as the car's state.  The test host writes that
- * image back from the Car (host/host_test.cpp) to compare it with the
- * original's data segment.
+ * so the header doubles as the car's state.
  */
 #include "terep.hpp"
 

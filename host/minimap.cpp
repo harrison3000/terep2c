@@ -29,7 +29,7 @@ Minimap::Minimap()
     map.upload(pixels, 256, 256, false);
 }
 
-// In the game's own font (the glyphs in the data segment: columns, bit 0 at the top).
+// In the game's own font (font_glyph: columns, bit 0 at the top).
 void Minimap::text(ImDrawList *dl, const char *s, float x, float y, float px, ImU32 c) const
 {
     for (; *s; s++, x += px) {
@@ -50,7 +50,7 @@ void Minimap::draw(ImDrawList *dl, float x0, float y0, float k, int w, int h) co
                  IM_COL32(255, 255, 255, MAP_ALPHA));
 
     const int mark = size / 80 > 1 ? size / 80 : 1, px = h / 200 > 1 ? h / 200 : 1;   // mark: half the square
-    for (int i = 0; i < G->num_cars; i++) {
+    for (int i = 0; i < world.num_cars; i++) {
         const Pos &p = car_get(i).ref_vertex().pos;
         float x = ax + (float)((p.x.raw >> 8) * (uint64_t)size >> 24) * k;  // 8.24 cells -> pixels
         float y = ay + (float)((p.y.raw >> 8) * (uint64_t)size >> 24) * k;

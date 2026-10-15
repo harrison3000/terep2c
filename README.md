@@ -39,8 +39,7 @@ in the Win16 port. The window opens at the size of the picture at the chosen sca
 enlarged to at least 960x600 and reduced by a whole factor if it does not fit on the screen.
 Esc quits; in a game started from the map chooser it goes back to the chooser, where another
 map (or other options) can be picked. Each game starts from scratch: `game_init` resets
-everything the game keeps outside the data segment and allocates its segments again, and the
-host makes a new data segment (`host_free_game`, which calls `game_free`).
+the global state (`state_reset`) and everything the game allocated (`game_free`).
 
 Window: the SDL host owns one OpenGL 3.3 core context (`host/gui.cpp`). The map chooser, the
 game's picture (the software renderer's frame, as a texture, scaled to the window keeping its
@@ -99,7 +98,7 @@ and kept in `extra_options`, which the map chooser shows as checkboxes:
 larger scales only the drawing changes; the game state is identical at any scale:
 
 - the screen, the clipping and the scanline tables grow with it (`render_scale`, `screen_w()`,
-  `screen_h()`; the large framebuffer lives outside the data segment);
+  `screen_h()`);
 - projection uses the full 16.16 position, relative to the eye, instead of the original's
   whole units (`view_transform_fine` in `scene.cpp`). With whole units a car close to the camera
   jumps several pixels at a time, which at 4x becomes a very visible jitter. Integer camera
@@ -135,10 +134,8 @@ src/            the game (no OS or library dependencies)
   terep.hpp     value types (Vec3, Coord, Pos), structures (Car, CarVertex, CarSpring,
                 Particle, ChaseCam, ProjVertex, PcxHeader...) and prototypes
   fixed.hpp     fixed point: Angle (0x10000 = 360°), Q15 (sine/cosine, matrices), multiplications
-  dataseg.def   map of the original data segment, field by field (the source of truth)
-  dataseg_init.cpp  initial settings in the segment (cameras, fog, view limits)
+  state.cpp     the global state (world, camera, render, map_tables, phys) and its initial values
   font.pbm      the font (plain PBM, 5x5 glyphs one below the other), embedded with #embed
-  dataseg.hpp   struct DataSeg generated from the .def (tools/gen_dataseg.py)
   math.cpp      table-driven sine/cosine, atan2, vector length, rotation matrix
   terrain.cpp   terrain height (2 triangles per heightmap cell)
   physics.cpp   soft body (Car methods): controls, wheels, springs, integration, collision, particles
@@ -153,7 +150,7 @@ src/            the game (no OS or library dependencies)
   game.cpp      one frame (views, text, keys) and the keyboard
 host/
   host.hpp      what the hosts share
-  common.cpp    creating and freeing the data segment, time step, case-insensitive file opening
+  common.cpp    starting and freeing a game, time step, case-insensitive file opening
   sdl_main.cpp  SDL2 host
   gui.cpp       its window: one OpenGL 3.3 core context, with ImGui (OpenGL3 backend) on it
   renderer_api.hpp  what an external OpenGL renderer gets: the context, the map's files and layers
@@ -170,7 +167,7 @@ host_test/      the test host (terep2-headless)
   main.cpp      replays a recording of the Win16 port and compares the frames
 data/           the Asphalt map and data.bin (the original's data segment, only for the oracles)
 tests/          run_tests.sh and the Win16 recordings (one directory each: record.txt, frames)
-tools/          the asm oracle (below), dataseg.hpp generator, synthetic and face car makers
+tools/          the asm oracle (below), synthetic and face car makers
 ```
 
 ### C++ style
@@ -196,23 +193,23 @@ no exceptions, no inheritance):
   targets as indices; `draw_car` runs it with a local `Program`.
 - **References, `bool`, `enum`, lambdas** instead of output pointers, int flags, `#define`s and
   local macros; no `goto`.
-- `#pragma once` in every header; the data segment structs are trivially copyable, with no
+- `#pragma once` in every header; the state structs are trivially copyable, with no
   constructors.
 
 The structures that lived in the data segment used to be `packed`, to keep the original layout;
 they are ordinary structs now (only `PcxHeader`, a file format, is still packed). Some code
 still uses a copy and writes it back, or a pointer, where a reference would do now.
 
-### Why there is still a "data segment"
+### Global state
 
-The original keeps everything in one 64 KB segment, addressed by offsets. The global state is
-still a `struct DataSeg` (`G->gravity`, `G->chase_cam[1]`...), generated from `src/dataseg.def`,
-which keeps the original offsets as documentation; it is being split by subject. Nothing
-addresses it by offset any more.
-The asm's scratch variables became local variables. What lives outside the segment: the cars,
-the keyboard (`keys`), the image segments (`segments`: heightmap, colour map, textures, screen,
-64 KB vectors indexed with 16-bit offsets that wrap like the original's; each car's skin is in its
-`Car`) and the host.
+The original keeps everything in one 64 KB data segment, addressed by offsets. Here the state is
+a few global structures, split by subject (`terep.hpp`, each field with its original offset in a
+comment): `world` (gravity, cars, players, particles), `camera`, `render` (clipping, polygons,
+visible terrain, scanline tables), `map_tables` (palette, fog and translucency tables) and `phys`
+(ground contact, collision planes). `state_reset()` (`state.cpp`) gives them their initial
+values. The asm's scratch variables became local variables. Besides them: the cars, the keyboard
+(`keys`), and `segments` (heightmap, colour map, textures, screen: 64 KB vectors indexed with
+16-bit offsets that wrap like the original's; each car's skin is in its `Car`).
 
 ### Cars
 
@@ -229,9 +226,8 @@ that uses them: the texts in `game.cpp`, the file names in `terep.hpp`/`load.cpp
 `text.cpp` (read from `src/font.pbm`, embedded in the executable with `#embed`), the surface, key
 and hull tables in `physics.cpp`, the sound patches in `sound.cpp`, the smoke quads in
 `scene.cpp`, and the sine and atan tables computed in `math.cpp` (the atan table with a slightly
-wrong π, 3.141688765, which gives exactly the original's). `dataseg_init()` only sets the
-initial state that is still in the segment. The original's scratch variables (kept in locals
-here), the cars' pool, the scanline tables and the DOS version's leftovers are gone. Until then the segment came out byte for byte identical to the original,
+wrong π, 3.141688765, which gives exactly the original's). Until the data segment was split, it
+came out byte for byte identical to the original,
 which the old tests compared with the asm (see Verification).
 
 ## Verification

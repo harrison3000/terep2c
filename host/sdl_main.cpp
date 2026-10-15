@@ -157,7 +157,7 @@ static Ending run(const GameRenderer &renderer, bool minimap)
     return end;
 }
 
-// One game on map, from a fresh data segment, until Esc or the window is
+// One game on map, from a fresh state, until Esc or the window is
 // closed; everything it used is freed again.
 static Ending play(const std::string &map, const HostOptions &host)
 {
@@ -167,13 +167,13 @@ static Ending play(const std::string &map, const HostOptions &host)
     if (!host.no_sound)
         opl_sound_start();                          // before game_init, which sets up the AdLib
     Ending end = Ending::FAILED;
-    if (!host_init_dataseg()) {
+    if (!host_init_state()) {
         opl_sound_stop();
         return end;
     }
     if (chdir(map.c_str()) != 0)
         perror(map.c_str());
-    else if (game_init() != 0 || G->num_cars <= 0)
+    else if (game_init() != 0 || world.num_cars <= 0)
         fprintf(stderr, "could not load the map in %s (no car1.dat?)\n", map.c_str());
     else
         end = run(game_renderers[host.renderer], host.minimap);

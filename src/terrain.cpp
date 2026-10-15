@@ -61,13 +61,13 @@ int16_t terrain_height(uint16_t x, uint16_t y)
 int16_t ground_probe(uint16_t x, uint16_t y)
 {
     TerrainSample s = terrain_sample(x, y);
-    G->ground_surface = colormap()[s.cell];
+    phys.ground_surface = colormap()[s.cell];
     if (!s.upper) {
-        G->ground_slope_x = s.dz_u;
-        G->ground_slope_y = s.dz_v;
+        phys.ground_slope_x = s.dz_u;
+        phys.ground_slope_y = s.dz_v;
     } else {
-        G->ground_slope_x = (int16_t)-s.dz_u;
-        G->ground_slope_y = (int16_t)-s.dz_v;
+        phys.ground_slope_x = (int16_t)-s.dz_u;
+        phys.ground_slope_y = (int16_t)-s.dz_v;
     }
     return terrain_interpolate(s);
 }

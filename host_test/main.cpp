@@ -107,7 +107,7 @@ static void save_frame(const char *dir, const char *name, int renders)
 /* Replays recdir/record.txt, written by the Win16 port, on mapdir: one
  * action per line, told apart by its first letter, called exactly as recorded:
  *   (empty), # ...     nothing; the only lines allowed before the first init
- *   init               new data segment, game_init in mapdir
+ *   init               fresh state (host_init_state), game_init in mapdir
  *   P                  physics_tick
  *   R                  game_frame
  *   K: 0xcd            game_key (scancode, | 0x80 = released)
@@ -155,7 +155,7 @@ static int replay(const char *rec, const char *mapdir, bool save, int scale)
         if (*line == 'i') {                 // init
             if (started)
                 host_free_game();
-            if (!host_init_dataseg() || chdir(map) != 0 || game_init() != 0) {
+            if (!host_init_state() || chdir(map) != 0 || game_init() != 0) {
                 fprintf(stderr, "%s: init failed\n", map);
                 return 1;
             }

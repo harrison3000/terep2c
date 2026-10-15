@@ -16,18 +16,15 @@ TEST_OBJ := $(patsubst host_test/%.cpp,build/test/%.o,$(wildcard host_test/*.cpp
 
 all: terep2-headless
 
-src/dataseg.hpp: src/dataseg.def tools/gen_dataseg.py
-	python3 tools/gen_dataseg.py
-
 build build/game build/host build/test build/sdl build/imgui/backends:
 	@mkdir -p $@
 
-# The game and what the hosts share; dataseg.hpp is generated before anything is compiled.
-build/game/%.o: src/%.cpp | build/game src/dataseg.hpp
+# The game and what the hosts share.
+build/game/%.o: src/%.cpp | build/game
 	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -c -o $@ $<
-build/host/%.o: host/%.cpp | build/host src/dataseg.hpp
+build/host/%.o: host/%.cpp | build/host
 	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -c -o $@ $<
-build/test/%.o: host_test/%.cpp | build/test src/dataseg.hpp
+build/test/%.o: host_test/%.cpp | build/test
 	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -c -o $@ $<
 
 terep2-headless: $(GAME_OBJ) $(HOST_OBJ) $(TEST_OBJ)
@@ -64,7 +61,7 @@ build/sdl/flags: FORCE | build/sdl
 	@echo '$(SDL_FLAGS) | $(GLR_LIB)' | cmp -s - $@ || echo '$(SDL_FLAGS) | $(GLR_LIB)' > $@
 FORCE:
 
-build/sdl/%.o: host/%.cpp build/sdl/flags | build/sdl src/dataseg.hpp $(IMGUI)/imgui.h $(OPL3)/opl3.h
+build/sdl/%.o: host/%.cpp build/sdl/flags | build/sdl $(IMGUI)/imgui.h $(OPL3)/opl3.h
 	$(CXX) $(SDL_FLAGS) $(DEPFLAGS) -c -o $@ $<
 build/imgui/%.o: $(IMGUI)/%.cpp | build/imgui/backends $(IMGUI)/imgui.h
 	$(CXX) -O2 -std=gnu++17 $(shell sdl2-config --cflags) -I$(IMGUI) $(DEPFLAGS) -c -o $@ $<
@@ -90,13 +87,13 @@ COV_OBJ       := $(patsubst build/%,build/cov/%,$(GAME_OBJ) $(HOST_OBJ) $(TEST_O
 COV_RUN       := LLVM_PROFILE_FILE=$(CURDIR)/build/cov/prof/%p.profraw
 COV_SHOW      := build/cov/terep2-headless -instr-profile=build/cov/all.profdata -ignore-filename-regex='host'
 
-build/cov/game/%.o: src/%.cpp | src/dataseg.hpp
+build/cov/game/%.o: src/%.cpp
 	@mkdir -p $(@D)
 	$(COV_CXX) $(COV_FLAGS) $(DEPFLAGS) -c -o $@ $<
-build/cov/host/%.o: host/%.cpp | src/dataseg.hpp
+build/cov/host/%.o: host/%.cpp
 	@mkdir -p $(@D)
 	$(COV_CXX) $(COV_FLAGS) $(DEPFLAGS) -c -o $@ $<
-build/cov/test/%.o: host_test/%.cpp | src/dataseg.hpp
+build/cov/test/%.o: host_test/%.cpp
 	@mkdir -p $(@D)
 	$(COV_CXX) $(COV_FLAGS) $(DEPFLAGS) -c -o $@ $<
 build/cov/terep2-headless: $(COV_OBJ)

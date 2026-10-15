@@ -1,8 +1,8 @@
 /*
  * Memory and files for the standalone hosts.
  *
- * The data segment (struct DataSeg) is allocated here and filled by
- * dataseg_init; the game allocates the rest (game_init, game_free).
+ * The game's state is global (state_reset); the game allocates the rest
+ * (game_init, game_free).
  */
 #include <cstdlib>
 #include "host.hpp"
@@ -10,18 +10,11 @@
 void host_free_game()
 {
     game_free();
-    free(G);
-    G = nullptr;
 }
 
-bool host_init_dataseg()
+bool host_init_state()
 {
-    G = static_cast<DataSeg *>(calloc(1, sizeof(DataSeg)));
-    if (!G) {
-        perror("data segment");
-        return false;
-    }
-    dataseg_init();
+    state_reset();
     return true;
 }
 

@@ -2,10 +2,10 @@
  * Polygon rasteriser: clipping against the view rectangle, edge scanning
  * and the three span fillers (flat, Gouraud, textured).
  *
- * A polygon is built in G->poly_buf[0] (screen x, y and up to two 16-bit
+ * A polygon is built in render.poly_buf[0] (screen x, y and up to two 16-bit
  * attributes per vertex).  Drawing clips it against the four sides of the
  * clip rectangle, ping-ponging between poly_buf[0] and poly_buf[1], walks
- * its edges into the per-scanline tables span_x / span_a / span_b and then
+ * its edges into the per-scanline tables render.span_x / render.span_a / render.span_b and then
  * fills every scanline between span_top and span_bottom.
  */
 #include <utility>
@@ -15,10 +15,6 @@
 int      render_scale = 1;
 Segments segments;
 
-/* Per-scanline tables, tall enough for every scale.  The original keeps
- * them in the data segment, where they are left unused (dataseg.def). 
- * TODO make these static again after the test overhaul */
-static ScanEdge span_x[200 * MAX_RENDER_SCALE], span_a[200 * MAX_RENDER_SCALE], span_b[200 * MAX_RENDER_SCALE];
 
 /* Clear the frame buffer to colour 0xff.  orig 1000:2b98 */
 void clear_screen()
@@ -29,7 +25,7 @@ void clear_screen()
 /* orig 1000:3f98 */
 void put_pixel(int16_t x, int16_t y, uint8_t color)
 {
-    if (x < G->clip_left || x > G->clip_right || y < G->clip_top || y > G->clip_bottom)
+    if (x < render.clip_left || x > render.clip_right || y < render.clip_top || y > render.clip_bottom)
         return;
     screen()[(uint32_t)(y * screen_w() + x)] = color;
 }
@@ -63,10 +59,10 @@ enum ClipEdge { CLIP_LEFT, CLIP_RIGHT, CLIP_TOP, CLIP_BOTTOM };
 static int16_t clip_distance(const PolyVertex &v, ClipEdge edge)
 {
     switch (edge) {
-    case CLIP_LEFT:   return (int16_t)(v.sx - G->clip_left);
-    case CLIP_RIGHT:  return (int16_t)(G->clip_right - v.sx);
-    case CLIP_TOP:    return (int16_t)(v.sy - G->clip_top);
-    default:          return (int16_t)(G->clip_bottom - v.sy);
+    case CLIP_LEFT:   return (int16_t)(v.sx - render.clip_left);
+    case CLIP_RIGHT:  return (int16_t)(render.clip_right - v.sx);
+    case CLIP_TOP:    return (int16_t)(v.sy - render.clip_top);
+    default:          return (int16_t)(render.clip_bottom - v.sy);
     }
 }
 
@@ -84,8 +80,8 @@ static void clip_intersect(PolyVertex &out, const PolyVertex &p, const PolyVerte
                            ClipEdge edge, int attrs)
 {
     bool horizontal = edge == CLIP_LEFT || edge == CLIP_RIGHT;
-    int16_t bound = edge == CLIP_LEFT ? G->clip_left : edge == CLIP_RIGHT ? G->clip_right
-                  : edge == CLIP_TOP ? G->clip_top : G->clip_bottom;
+    int16_t bound = edge == CLIP_LEFT ? render.clip_left : edge == CLIP_RIGHT ? render.clip_right
+                  : edge == CLIP_TOP ? render.clip_top : render.clip_bottom;
     /* distances measured along the clipped axis, as the original does */
     int16_t dc = (int16_t)((horizontal ? c.sx : c.sy) - bound);
     int16_t dp = (int16_t)((horizontal ? p.sx : p.sy) - bound);
@@ -143,7 +139,7 @@ static void clip_pass(PolyBuf &src, PolyBuf &dst, ClipEdge edge, int attrs)
 /* Clip poly_buf[0] in place; returns the number of vertices left. */
 static uint16_t clip_polygon(int attrs)
 {
-    PolyBuf &a = G->poly_buf[0], &b = G->poly_buf[1];
+    PolyBuf &a = render.poly_buf[0], &b = render.poly_buf[1];
     clip_pass(a, b, CLIP_LEFT, attrs);
     clip_pass(b, a, CLIP_RIGHT, attrs);
     clip_pass(a, b, CLIP_TOP, attrs);
@@ -166,15 +162,15 @@ static void scan_edge_x(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
         std::swap(y0, y1);
         side = 1;
     }
-    if (y0 < G->span_top) G->span_top = y0;
-    if (y1 > G->span_bottom) G->span_bottom = y1;
+    if (y0 < render.span_top) render.span_top = y0;
+    if (y1 > render.span_bottom) render.span_bottom = y1;
 
     int16_t dy = (int16_t)(y1 - y0);
     if (!dy)
         return;
     int32_t step = (int32_t)((uint32_t)(uint16_t)(x1 - x0) << 16) / dy;
     uint32_t x = (uint32_t)(uint16_t)x0 << 16;
-    int16_t *row = side ? &span_x[0].right : &span_x[0].left;
+    int16_t *row = side ? &render.span_x[0].right : &render.span_x[0].left;
     row += 2 * y0;
     for (int16_t i = 0; i < dy; i++, row += 2) {
         *row = (int16_t)(x >> 16);
@@ -221,8 +217,8 @@ static void scan_edge_uv(int16_t y0, int16_t y1, uint16_t u0, uint16_t v0, uint1
     int32_t du = (int32_t)((uint32_t)(uint16_t)(u1 - u0) << 16) / dy;
     int32_t dv = (int32_t)((uint32_t)(uint16_t)(v1 - v0) << 16) / dy;
     uint32_t u = (uint32_t)u0 << 16, v = (uint32_t)v0 << 16;
-    int16_t *ru = &span_a[0].left + side + 2 * y0;
-    int16_t *rv = &span_b[0].left + side + 2 * y0;
+    int16_t *ru = &render.span_a[0].left + side + 2 * y0;
+    int16_t *rv = &render.span_b[0].left + side + 2 * y0;
     for (int16_t i = 0; i < dy; i++, ru += 2, rv += 2) {
         *ru = (int16_t)(u >> 16);
         *rv = (int16_t)(v >> 16);
@@ -233,16 +229,16 @@ static void scan_edge_uv(int16_t y0, int16_t y1, uint16_t u0, uint16_t v0, uint1
     *rv = (int16_t)(v >> 16);
 }
 
-/* Walk the polygon outline into span_x.  Returns 0 when nothing is left
+/* Walk the polygon outline into render.span_x.  Returns 0 when nothing is left
  * after clipping. */
 static bool scan_outline(int attrs)
 {
     uint16_t n = clip_polygon(attrs);
     if (n < 3)
         return false;
-    const PolyVertex *v = G->poly_buf[0].v;
-    G->span_top = G->clip_bottom;
-    G->span_bottom = G->clip_top;
+    const PolyVertex *v = render.poly_buf[0].v;
+    render.span_top = render.clip_bottom;
+    render.span_bottom = render.clip_top;
     for (uint16_t i = 0; i + 1 < n; i++)
         scan_edge_x(v[i].sx, v[i].sy, v[i + 1].sx, v[i + 1].sy);
     scan_edge_x(v[n - 1].sx, v[n - 1].sy, v[0].sx, v[0].sy);
@@ -255,16 +251,16 @@ static bool scan_outline(int attrs)
  * segment (see pixel_mask), higher scales cut them to the rectangle. */
 static uint32_t span_extent(int16_t y, int16_t *x0, int16_t *w)
 {
-    int16_t l = span_x[y].left;
-    int16_t d = (int16_t)(span_x[y].right - l);
+    int16_t l = render.span_x[y].left;
+    int16_t d = (int16_t)(render.span_x[y].right - l);
     if (d < 0) {
         l = (int16_t)(l + d);
         d = (int16_t)-d;
     }
     if (render_scale > 1) {
         int16_t r = (int16_t)(l + d);
-        if (l < G->clip_left) l = G->clip_left;
-        if (r > G->clip_right) r = G->clip_right;
+        if (l < render.clip_left) l = render.clip_left;
+        if (r > render.clip_right) r = render.clip_right;
         d = (int16_t)(r < l ? -1 : r - l);
     }
     *x0 = l;
@@ -287,17 +283,17 @@ void draw_flat()
 {
     if (!scan_outline(0))
         return;
-    int16_t rows = (int16_t)(G->span_bottom - G->span_top);
+    int16_t rows = (int16_t)(render.span_bottom - render.span_top);
     if (!rows)
         return;
     uint8_t *scr = screen();
     const uint32_t m = pixel_mask();
-    uint16_t color = G->poly_color;
-    for (int16_t y = G->span_top; rows >= 0; rows--, y++) {
+    uint16_t color = render.poly_color;
+    for (int16_t y = render.span_top; rows >= 0; rows--, y++) {
         int16_t x0, w;
         uint32_t o = span_extent(y, &x0, &w);
         if (color >= 0xf0f0) {
-            const uint8_t *shade = G->shade_table[(uint8_t)((color >> 8) - 0xf0)];
+            const uint8_t *shade = map_tables.shade_table[(uint8_t)((color >> 8) - 0xf0)];
             for (uint16_t i = 0; i < (uint16_t)w; i++, o++)
                 scr[o & m] = shade[scr[o & m]];
         } else {
@@ -312,22 +308,22 @@ void draw_shaded()
 {
     if (!scan_outline(1))
         return;
-    const PolyVertex *v = G->poly_buf[0].v;
-    uint16_t n = G->poly_buf[0].count;
-    int16_t *tab = &span_a[0].left;
+    const PolyVertex *v = render.poly_buf[0].v;
+    uint16_t n = render.poly_buf[0].count;
+    int16_t *tab = &render.span_a[0].left;
     for (uint16_t i = 0; i + 1 < n; i++)
         scan_edge_attr(tab, (int16_t)v[i].a, v[i].sy, (int16_t)v[i + 1].a, v[i + 1].sy);
     scan_edge_attr(tab, (int16_t)v[n - 1].a, v[n - 1].sy, (int16_t)v[0].a, v[0].sy);
 
-    int16_t rows = (int16_t)(G->span_bottom - G->span_top);
+    int16_t rows = (int16_t)(render.span_bottom - render.span_top);
     if (!rows)
         return;
     uint8_t *scr = screen();
     const uint32_t m = pixel_mask();
-    for (int16_t y = G->span_top; rows >= 0; rows--, y++) {
-        int16_t a0 = span_a[y].left;
-        int16_t da = (int16_t)(span_a[y].right - a0);
-        if ((int16_t)(span_x[y].right - span_x[y].left) < 0) {
+    for (int16_t y = render.span_top; rows >= 0; rows--, y++) {
+        int16_t a0 = render.span_a[y].left;
+        int16_t da = (int16_t)(render.span_a[y].right - a0);
+        if ((int16_t)(render.span_x[y].right - render.span_x[y].left) < 0) {
             a0 = (int16_t)(a0 + da);
             da = (int16_t)-da;
         }
@@ -349,21 +345,21 @@ void draw_textured(const uint8_t *tex)
 {
     if (!scan_outline(2))
         return;
-    const PolyVertex *v = G->poly_buf[0].v;
-    uint16_t n = G->poly_buf[0].count;
+    const PolyVertex *v = render.poly_buf[0].v;
+    uint16_t n = render.poly_buf[0].count;
     for (uint16_t i = 0; i + 1 < n; i++)
         scan_edge_uv(v[i].sy, v[i + 1].sy, v[i].a, v[i].b, v[i + 1].a, v[i + 1].b);
     scan_edge_uv(v[n - 1].sy, v[0].sy, v[n - 1].a, v[n - 1].b, v[0].a, v[0].b);
 
-    int16_t rows = (int16_t)(G->span_bottom - G->span_top);
+    int16_t rows = (int16_t)(render.span_bottom - render.span_top);
     if (!rows)
         return;
     uint8_t *scr = screen();
     const uint32_t m = pixel_mask();
-    for (int16_t y = G->span_top; rows >= 0; rows--, y++) {
-        int16_t u0 = span_a[y].left, du = (int16_t)(span_a[y].right - u0);
-        int16_t v0 = span_b[y].left, dv = (int16_t)(span_b[y].right - v0);
-        if ((int16_t)(span_x[y].right - span_x[y].left) < 0) {
+    for (int16_t y = render.span_top; rows >= 0; rows--, y++) {
+        int16_t u0 = render.span_a[y].left, du = (int16_t)(render.span_a[y].right - u0);
+        int16_t v0 = render.span_b[y].left, dv = (int16_t)(render.span_b[y].right - v0);
+        if ((int16_t)(render.span_x[y].right - render.span_x[y].left) < 0) {
             u0 = (int16_t)(u0 + du); du = (int16_t)-du;
             v0 = (int16_t)(v0 + dv); dv = (int16_t)-dv;
         }
@@ -375,7 +371,7 @@ void draw_textured(const uint8_t *tex)
         for (uint16_t i = 0; i < (uint16_t)w; i++, o++) {
             uint8_t t = tex[(uint16_t)((u >> 16) + ((vv >> 16) << 8))];
             if (t != 0xff)
-                scr[o & m] = t >= 0xf0 ? G->shade_table[t - 0xf0][scr[o & m]] : t;
+                scr[o & m] = t >= 0xf0 ? map_tables.shade_table[t - 0xf0][scr[o & m]] : t;
             u += (uint32_t)ustep;
             vv += (uint32_t)vstep;
         }
@@ -386,7 +382,7 @@ void draw_textured(const uint8_t *tex)
  * on screen?  orig 1000:2662 */
 bool poly_backfacing()
 {
-    const PolyVertex *v = G->poly_buf[0].v;
+    const PolyVertex *v = render.poly_buf[0].v;
     int32_t a = (int32_t)(int16_t)(v[0].sx - v[1].sx) * (int16_t)(v[2].sy - v[1].sy);
     int32_t b = (int32_t)(int16_t)(v[2].sx - v[1].sx) * (int16_t)(v[0].sy - v[1].sy);
     return (int32_t)((uint32_t)b - (uint32_t)a) < 0;
@@ -396,11 +392,6 @@ bool poly_backfacing()
  * Building polygons from camera-space points, clipped at the near plane
  * ---------------------------------------------------------------------- */
 
-/* State of the near clipper: the previous point (orig DS e990..e996) */
-static struct {
-    int16_t x, dist, z;
-    uint16_t count;
-} nc;
 
 /* Projection of a point lying on the near plane.  The original uses the
  * full-screen centre here even in split screen.  Far above or below the eye
@@ -408,9 +399,9 @@ static struct {
  * wraps around (see project). */
 static void near_point(int16_t x, int16_t z, uint32_t attr)
 {
-    PolyVertex &o = G->poly_buf[0].v[nc.count++];
+    PolyVertex &o = render.poly_buf[0].v[render.near_prev.count++];
     int16_t sx, sy;
-    project(x, G->near_clip, z, &sx, &sy);
+    project(x, render.near_clip, z, &sx, &sy);
     o.sx = (int16_t)(screen_clamp(sx * render_scale) + 160 * render_scale);
     o.sy = (int16_t)(100 * render_scale - screen_clamp(sy * render_scale));
     o.a = (uint16_t)attr;
@@ -419,7 +410,7 @@ static void near_point(int16_t x, int16_t z, uint32_t attr)
 
 static void emit_projected(const ProjVertex &p, uint32_t attr)
 {
-    PolyVertex &o = G->poly_buf[0].v[nc.count++];
+    PolyVertex &o = render.poly_buf[0].v[render.near_prev.count++];
     o.sx = p.sx;
     o.sy = p.sy;
     o.a = (uint16_t)attr;
@@ -429,12 +420,12 @@ static void emit_projected(const ProjVertex &p, uint32_t attr)
 /* First point of a polygon.  attr is (b << 16 | a).  orig 1000:46a0 */
 void poly_begin(const ProjVertex &p, uint32_t attr)
 {
-    nc.count = 0;
-    nc.dist = (int16_t)(p.y - G->near_clip);
-    if (nc.dist >= 0)
+    render.near_prev.count = 0;
+    render.near_prev.dist = (int16_t)(p.y - render.near_clip);
+    if (render.near_prev.dist >= 0)
         emit_projected(p, attr);
-    nc.x = p.x;
-    nc.z = p.z;
+    render.near_prev.x = p.x;
+    render.near_prev.z = p.z;
 }
 
 /* Next point.  Where the outline crosses the near plane a point on the
@@ -442,32 +433,32 @@ void poly_begin(const ProjVertex &p, uint32_t attr)
  * orig 1000:46d3 */
 void poly_add(const ProjVertex &p, uint32_t attr)
 {
-    int16_t d = (int16_t)(p.y - G->near_clip);
-    if (nc.dist >= 0) {
+    int16_t d = (int16_t)(p.y - render.near_clip);
+    if (render.near_prev.dist >= 0) {
         if (d >= 0)
             emit_projected(p, attr);
-        else if (nc.dist != 0)
-            near_point(edge_lerp(d, p.x, nc.dist, nc.x), edge_lerp(d, p.z, nc.dist, nc.z), attr);
+        else if (render.near_prev.dist != 0)
+            near_point(edge_lerp(d, p.x, render.near_prev.dist, render.near_prev.x), edge_lerp(d, p.z, render.near_prev.dist, render.near_prev.z), attr);
     } else if (d >= 0) {
-        near_point(edge_lerp(nc.dist, nc.x, d, p.x), edge_lerp(nc.dist, nc.z, d, p.z), attr);
+        near_point(edge_lerp(render.near_prev.dist, render.near_prev.x, d, p.x), edge_lerp(render.near_prev.dist, render.near_prev.z, d, p.z), attr);
         emit_projected(p, attr);
     }
-    nc.dist = d;
-    nc.x = p.x;
-    nc.z = p.z;
+    render.near_prev.dist = d;
+    render.near_prev.x = p.x;
+    render.near_prev.z = p.z;
 }
 
 /* Closing point (normally the first one again): only the crossing is
  * added.  Sets the vertex count; returns it.  orig 1000:47ec */
 uint16_t poly_end(const ProjVertex &p, uint32_t attr)
 {
-    int16_t d = (int16_t)(p.y - G->near_clip);
-    if (nc.dist >= 0) {
-        if (d < 0 && nc.dist != 0)
-            near_point(edge_lerp(d, p.x, nc.dist, nc.x), edge_lerp(d, p.z, nc.dist, nc.z), attr);
+    int16_t d = (int16_t)(p.y - render.near_clip);
+    if (render.near_prev.dist >= 0) {
+        if (d < 0 && render.near_prev.dist != 0)
+            near_point(edge_lerp(d, p.x, render.near_prev.dist, render.near_prev.x), edge_lerp(d, p.z, render.near_prev.dist, render.near_prev.z), attr);
     } else if (d >= 0) {
-        near_point(edge_lerp(nc.dist, nc.x, d, p.x), edge_lerp(nc.dist, nc.z, d, p.z), attr);
+        near_point(edge_lerp(render.near_prev.dist, render.near_prev.x, d, p.x), edge_lerp(render.near_prev.dist, render.near_prev.z, d, p.z), attr);
     }
-    G->poly_buf[0].count = nc.count;
-    return nc.count;
+    render.poly_buf[0].count = render.near_prev.count;
+    return render.near_prev.count;
 }

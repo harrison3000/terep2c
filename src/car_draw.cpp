@@ -4,7 +4,7 @@
  * small bytecode program stored in the car file, draws polygons using
  * those points.
  *
- * Projected points, in G->car_proj:
+ * Projected points, in render.car_proj:
  *   [2i]     vertex i
  *   [2i + 1] the ground under vertex i
  *   [2n]     vertex 0 moved along the steered front axle
@@ -18,7 +18,7 @@ static const int16_t wheel_sector_limits[8] = { -16069, -13623, -9102, -3196, 31
 
 static void transform_point(Pos p, ProjVertex *out)
 {
-    view_transform_fine(p - G->eye, out);
+    view_transform_fine(p - camera.eye, out);
 }
 
 /* Half of the front axle, turned by the steering angle (16.16, length
@@ -36,7 +36,7 @@ static void transform_car(Car &car)
 {
     CarVertex *v = car.vertices();
     uint16_t n = car.vertex_count();
-    ProjVertex *out = G->car_proj;
+    ProjVertex *out = render.car_proj;
 
     for (uint16_t i = 0; i < n; i++) {
         Pos p = v[i].pos;
@@ -238,7 +238,7 @@ std::vector<ModelOp> model_decode(const std::vector<uint8_t> &code)
 static const ProjVertex &point(uint16_t i)
 {
     static const ProjVertex none = {};
-    return i < sizeof G->car_proj / sizeof G->car_proj[0] ? G->car_proj[i] : none;
+    return i < sizeof render.car_proj / sizeof render.car_proj[0] ? render.car_proj[i] : none;
 }
 
 /* The shade table of OP_SHADED_TAB: the word at byte idx of what was
@@ -247,7 +247,7 @@ static const ProjVertex &point(uint16_t i)
  * fewer than 50 vertices); the original read past it, here that is 0. */
 static uint16_t shade_tab(uint16_t idx)
 {
-    const ProjVertex *table = &G->car_proj[100];
+    const ProjVertex *table = &render.car_proj[100];
     const int16_t *words = &table[0].x;     /* ProjVertex is five int16_t */
     if ((uint32_t)idx + 1 >= 20 * sizeof(ProjVertex))
         return 0;
@@ -321,7 +321,7 @@ static void draw_wheel(const ModelOp &o, const uint8_t *tex)
     int16_t c0 = size(w.w0, c), s0 = size(w.w0, s);
     int16_t c1 = size(w.w1, c), s1 = size(w.w1, s);
 
-    PolyVertex *out = G->poly_buf[0].v;
+    PolyVertex *out = render.poly_buf[0].v;
     int16_t X = a.sx, Y = a.sy;
     out[0].sx = (int16_t)(X - c0 - s1); out[0].sy = (int16_t)(Y + s0 - c1);
     out[1].sx = (int16_t)(X - c0 + s1); out[1].sy = (int16_t)(Y + s0 + c1);
@@ -331,7 +331,7 @@ static void draw_wheel(const ModelOp &o, const uint8_t *tex)
         out[i].a = (uint16_t)w.uv[i];
         out[i].b = (uint16_t)(w.uv[i] >> 16);
     }
-    G->poly_buf[0].count = 4;
+    render.poly_buf[0].count = 4;
     draw_textured(tex);
 }
 
@@ -356,7 +356,7 @@ void Program::run(uint32_t i)
         switch (o.op) {
         case OP_PIXEL: {                /* FUN_1000_1408.LAB_LOC_6 */
             const ProjVertex &p = point(o.p[0]);
-            if (p.y >= G->near_clip)
+            if (p.y >= render.near_clip)
                 put_block(p.sx, p.sy, (uint8_t)o.word);
             break;
         }
@@ -374,7 +374,7 @@ void Program::run(uint32_t i)
         }
         case OP_FLAT: {                 /* FUN_1000_1408.LAB_LOC_9 */
             uint16_t count = draw_outline(o);
-            G->poly_color = o.word;
+            render.poly_color = o.word;
             if (outline_visible(count))
                 draw_flat();
             break;
@@ -386,7 +386,7 @@ void Program::run(uint32_t i)
                 draw_shaded();
             break;
         case OP_SHADED_TAB:             /* FUN_1000_1408.LAB_LOC_14 */
-            G->poly_color = o.word;
+            render.poly_color = o.word;
             if (outline_visible(draw_outline(o)))
                 draw_shaded();
             break;
@@ -396,12 +396,12 @@ void Program::run(uint32_t i)
             break;
         case OP_SPRITE: {               /* FUN_1000_1408.LAB_LOC_18 */
             const ProjVertex &p = point(o.p[0]);
-            if (p.y >= G->near_clip)
+            if (p.y >= render.near_clip)
                 draw_sprite(p.sx, p.sy, p.y, o.sprite, tex);
             break;
         }
         case OP_WHEEL:                  /* FUN_1000_1408.LAB_LOC_20 */
-            if (point(o.p[0]).y >= G->near_clip)
+            if (point(o.p[0]).y >= render.near_clip)
                 draw_wheel(o, tex);
             break;
         case OP_SORT2:                  /* FUN_1000_1408.LAB_LOC_24 */

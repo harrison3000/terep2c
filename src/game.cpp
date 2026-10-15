@@ -3,7 +3,6 @@
  */
 #include "terep.hpp"
 
-DataSeg *G;
 uint8_t keys[128];                  /* all released (0xff) once game_init ran */
 ExtraOptions extra_options;
 
@@ -44,27 +43,27 @@ void game_frame_reset()
 static void set_viewport(int16_t top, int16_t center_y, int16_t bottom)
 {
     int16_t s = (int16_t)render_scale;
-    G->clip_left = 0;
-    G->screen_cx = (int16_t)(160 * s);
-    G->clip_right = (int16_t)(320 * s - 1);
-    G->clip_top = (int16_t)(top * s);
-    G->screen_cy = (int16_t)(center_y * s);
-    G->clip_bottom = (int16_t)((bottom + 1) * s - 1);
+    render.clip_left = 0;
+    render.screen_cx = (int16_t)(160 * s);
+    render.clip_right = (int16_t)(320 * s - 1);
+    render.clip_top = (int16_t)(top * s);
+    render.screen_cy = (int16_t)(center_y * s);
+    render.clip_bottom = (int16_t)((bottom + 1) * s - 1);
 }
 
 static void draw_view(int view)
 {
     camera_update(view);
-    Angle yaw = G->eye_angles.yaw;
-    G->yaw_sin7 = (int16_t)(fx_sin(yaw).raw >> 7);
-    G->yaw_cos7 = (int16_t)(fx_cos(yaw).raw >> 7);
-    build_matrix(G->eye_angles, G->view_matrix);
-    transpose(G->view_matrix);
+    Angle yaw = camera.eye_angles.yaw;
+    camera.yaw_sin7 = (int16_t)(fx_sin(yaw).raw >> 7);
+    camera.yaw_cos7 = (int16_t)(fx_cos(yaw).raw >> 7);
+    build_matrix(camera.eye_angles, camera.view_matrix);
+    transpose(camera.view_matrix);
     if (view == 0)
         clear_screen();
     draw_terrain();
     draw_particles();
-    engine_sound(G->player_car[view], (uint8_t)view);
+    engine_sound(world.player_car[view], (uint8_t)view);
 }
 
 static bool held(uint8_t scancode)
@@ -76,7 +75,7 @@ static bool held(uint8_t scancode)
  * Esc was pressed.  orig FUN_main_render */
 int game_frame()
 {
-    if (!G->split_screen) {
+    if (!world.split_screen) {
         set_viewport(0, 0x50, 0xc7);
         draw_view(0);
     } else {
@@ -94,44 +93,44 @@ int game_frame()
     banner_color++;
 
     /* numeric keypad: chase camera height (+ -) and distance (/ *) */
-    if (held(78) && G->chase_height <= 1000)
-        G->chase_height += 20;
-    if (held(74) && G->chase_height >= 50)
-        G->chase_height -= 20;
-    if (held(53) && G->chase_distance <= 0x1000)
-        G->chase_distance += 40;
-    if (held(55) && G->chase_distance >= 0x100)
-        G->chase_distance -= 40;
+    if (held(78) && camera.chase_height <= 1000)
+        camera.chase_height += 20;
+    if (held(74) && camera.chase_height >= 50)
+        camera.chase_height -= 20;
+    if (held(53) && camera.chase_distance <= 0x1000)
+        camera.chase_distance += 40;
+    if (held(55) && camera.chase_distance >= 0x100)
+        camera.chase_distance -= 40;
 
     switch (keys[0]) {                  /* last key pressed */
     case 0x01:                          /* Esc */
         return 1;
     case 0x0f:                          /* Tab: next car for view 1 */
-        if (++G->player_car[0] >= (uint16_t)G->num_cars)
-            G->player_car[0] = 0;
+        if (++world.player_car[0] >= (uint16_t)world.num_cars)
+            world.player_car[0] = 0;
         break;
     case 0x10:                          /* Q: next car for view 2 */
-        if (++G->player_car[1] >= (uint16_t)G->num_cars)
-            G->player_car[1] = 0;
+        if (++world.player_car[1] >= (uint16_t)world.num_cars)
+            world.player_car[1] = 0;
         break;
     case 0x3b: case 0x3c: case 0x3d: case 0x3e: case 0x3f:     /* F1..F5 */
-        G->cam_mode[0] = (uint8_t)(keys[0] - 0x3b);
+        camera.cam_mode[0] = (uint8_t)(keys[0] - 0x3b);
         break;
     case 0x40:                          /* F6: cycle view 2's camera */
-        if (++G->cam_mode[1] >= 5)
-            G->cam_mode[1] = 0;
+        if (++camera.cam_mode[1] >= 5)
+            camera.cam_mode[1] = 0;
         break;
     case 0x1a:                          /* [ */
-        G->gravity += 50;
+        world.gravity += 50;
         break;
     case 0x1b:                          /* ] */
-        G->gravity -= 50;
+        world.gravity -= 50;
         break;
     case 0x44:                          /* F10: fog distance */
-        G->fog_start ^= 0x600;
+        render.fog_start ^= 0x600;
         break;
     case 0x43:                          /* F9: split screen */
-        G->split_screen ^= 1;
+        world.split_screen ^= 1;
         break;
     default:
         return 0;

@@ -15,6 +15,10 @@
 #include <utility>
 #include "terep.hpp"
 
+/* The map rectangle the visible-terrain hexagon is clipped to: x in
+ * VIS_MIN..VIS_MAX, y in VIS_LO..VIS_HI (cells). */
+constexpr int16_t VIS_MIN = 0, VIS_MAX = 0xff, VIS_LO = 0, VIS_HI = 0xff;
+
 /* Frustum shape for the visible-terrain hexagon, in map cells. */
 constexpr int16_t VIEW_REACH = 0x21, VIEW_SIDE_A = 0x19, VIEW_SIDE_B = 0x14;
 
@@ -43,16 +47,16 @@ bool poly_hidden;
 bool view_transform(int16_t x, int16_t y, int16_t z, ProjVertex *out)
 {
     int16_t r[3];
-    rotate(G->view_matrix, x, y, z, r);
+    rotate(camera.view_matrix, x, y, z, r);
     out->x = r[0];
     out->y = (int16_t)-r[1];
     out->z = r[2];
-    if (out->y < G->near_clip)
+    if (out->y < render.near_clip)
         return false;
     int16_t sx, sy;
     project(out->x, out->y, out->z, &sx, &sy);
-    out->sx = (int16_t)(sx + G->screen_cx);
-    out->sy = (int16_t)(G->screen_cy - sy);
+    out->sx = (int16_t)(sx + render.screen_cx);
+    out->sy = (int16_t)(render.screen_cy - sy);
     return true;
 }
 
@@ -67,7 +71,7 @@ bool view_transform_fine(Vec3 d, ProjVertex *out)
         return false;
     if (render_scale == 1)
         return true;
-    const Q15 *m = G->view_matrix;
+    const Q15 *m = camera.view_matrix;
     auto row = [&](int c) {                                 /* 16.16 */
         return ((int64_t)d.x * m[c].raw + (int64_t)d.y * m[3 + c].raw + (int64_t)d.z * m[6 + c].raw) >> 15;
     };
@@ -75,8 +79,8 @@ bool view_transform_fine(Vec3 d, ProjVertex *out)
     if (depth < 0x10000)
         depth = 0x10000;
     int64_t s = 256 * render_scale;
-    out->sx = screen_clamp((int32_t)((x * s + (x < 0 ? -depth : depth) / 2) / depth) + G->screen_cx);
-    out->sy = screen_clamp(G->screen_cy - (int32_t)((z * s + (z < 0 ? -depth : depth) / 2) / depth));
+    out->sx = screen_clamp((int32_t)((x * s + (x < 0 ? -depth : depth) / 2) / depth) + render.screen_cx);
+    out->sy = screen_clamp(render.screen_cy - (int32_t)((z * s + (z < 0 ? -depth : depth) / 2) / depth));
     return true;
 }
 
@@ -84,11 +88,11 @@ bool view_transform_fine(Vec3 d, ProjVertex *out)
 static bool view_transform_units(uint16_t x, uint16_t y, uint16_t z, ProjVertex *out)
 {
     if (render_scale > 1) {
-        Vec3 d = Pos{ Coord::from_units(x), Coord::from_units(y), Coord::from_units(z) } - G->eye;
+        Vec3 d = Pos{ Coord::from_units(x), Coord::from_units(y), Coord::from_units(z) } - camera.eye;
         return view_transform_fine(d, out);
     }
-    return view_transform((int16_t)(x - G->eye.x.units()), (int16_t)(y - G->eye.y.units()),
-                          (int16_t)(z - G->eye.z.units()), out);
+    return view_transform((int16_t)(x - camera.eye.x.units()), (int16_t)(y - camera.eye.y.units()),
+                          (int16_t)(z - camera.eye.z.units()), out);
 }
 
 /* ------------------------------------------------------------------------
@@ -143,13 +147,13 @@ static void vis_span_edge(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool m
         std::swap(y0, y1);
         right = !right;
     }
-    if (y0 < G->vis_row_first) G->vis_row_first = y0;
-    if (y1 > G->vis_row_last) G->vis_row_last = y1;
+    if (y0 < render.vis_row_first) render.vis_row_first = y0;
+    if (y1 > render.vis_row_last) render.vis_row_last = y1;
 
     uint16_t dy = (uint16_t)(y1 - y0);
     if (!dy)
         return;
-    int16_t *row = (right ? &G->vis_span[0].right : &G->vis_span[0].left) + 2 * y0;
+    int16_t *row = (right ? &render.vis_span[0].right : &render.vis_span[0].left) + 2 * y0;
     int16_t dx = (int16_t)(x1 - x0);
     int16_t step = 1;
     if (dx < 0) {
@@ -174,11 +178,11 @@ static void vis_span_edge(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool m
  * x and y exchanged.  orig 1000:3fd0 / 1000:41b2 */
 static void compute_visible_area(bool swap_xy)
 {
-    int16_t ex = G->eye.x.cell();
-    int16_t ey = G->eye.y.cell();
-    int16_t s7 = G->yaw_sin7, c7 = G->yaw_cos7;
+    int16_t ex = camera.eye.x.cell();
+    int16_t ey = camera.eye.y.cell();
+    int16_t s7 = camera.yaw_sin7, c7 = camera.yaw_cos7;
     int16_t c = (int16_t)(c7 >> 6), s = (int16_t)(s7 >> 6);
-    Point2 *p = G->vis_buf[0].v;
+    Point2 *p = render.vis_buf[0].v;
 
     /* three points just around the camera, behind it */
     p[0].x = (int16_t)(ex - c); p[0].y = (int16_t)(ey - s);
@@ -193,22 +197,22 @@ static void compute_visible_area(bool swap_xy)
     p[4].y = (int16_t)(ey - ((int16_t)(VIEW_REACH * c7) >> 8));
     p[5].x = (int16_t)(((int16_t)(sa - cb) >> 8) + ex);
     p[5].y = (int16_t)(((int16_t)(-sb - ca) >> 8) + ey);
-    G->vis_buf[0].count = 6;
+    render.vis_buf[0].count = 6;
     if (swap_xy) {
         for (int i = 0; i < 6; i++)
             p[i] = { p[i].y, p[i].x };
     }
 
-    vis_clip_pass(G->vis_buf[0], G->vis_buf[1], false, G->vis_min, true);
-    vis_clip_pass(G->vis_buf[1], G->vis_buf[0], false, G->vis_max, false);
-    vis_clip_pass(G->vis_buf[0], G->vis_buf[1], true, G->vis_lo, true);
-    vis_clip_pass(G->vis_buf[1], G->vis_buf[0], true, G->vis_hi, false);
+    vis_clip_pass(render.vis_buf[0], render.vis_buf[1], false, VIS_MIN, true);
+    vis_clip_pass(render.vis_buf[1], render.vis_buf[0], false, VIS_MAX, false);
+    vis_clip_pass(render.vis_buf[0], render.vis_buf[1], true, VIS_LO, true);
+    vis_clip_pass(render.vis_buf[1], render.vis_buf[0], true, VIS_HI, false);
 
-    uint16_t n = G->vis_buf[0].count;
+    uint16_t n = render.vis_buf[0].count;
     if (n < 3)
         return;                         /* keeps last frame's spans */
-    G->vis_row_first = G->vis_hi;
-    G->vis_row_last = G->vis_lo;
+    render.vis_row_first = VIS_HI;
+    render.vis_row_last = VIS_LO;
     for (uint16_t i = 0; i + 1 < n; i++)
         vis_span_edge(p[i].x, p[i].y, p[i + 1].x, p[i + 1].y, swap_xy);
     vis_span_edge(p[n - 1].x, p[n - 1].y, p[0].x, p[0].y, swap_xy);
@@ -255,9 +259,9 @@ static void draw_cell(const CellQuad &q, uint8_t color)
 {
     int16_t dist = (int16_t)((int16_t)(q.d1.y + q.s0.y) >> 2);
 
-    if (dist >= G->fog_start) {
-        uint8_t c = (&G->fog_table[0][0])[(uint8_t)(dist >> 8) * 256 + color];   /* may run past the table */
-        G->poly_color = (uint16_t)(c << 8 | c);
+    if (dist >= render.fog_start) {
+        uint8_t c = (&map_tables.fog_table[0][0])[(uint8_t)(dist >> 8) * 256 + color];   /* may run past the table */
+        render.poly_color = (uint16_t)(c << 8 | c);
         poly_begin(q.d1, 0);
         poly_add(q.d0, 0);
         poly_add(q.s0, 0);
@@ -267,8 +271,8 @@ static void draw_cell(const CellQuad &q, uint8_t color)
         poly_add(q.s0, 0);
         poly_add(q.s1, 0);
         if (cell_visible(q, poly_end(q.d1, 0))) {
-            if (G->poly_color & 0x0f)
-                G->poly_color -= 0x101;
+            if (render.poly_color & 0x0f)
+                render.poly_color -= 0x101;
             draw_flat();
         }
         return;
@@ -296,7 +300,7 @@ static void draw_cell(const CellQuad &q, uint8_t color)
 
 static void draw_cars_in_cell(uint16_t cell)
 {
-    for (int i = 0; i < G->num_cars; i++)
+    for (int i = 0; i < world.num_cars; i++)
         if (car_get(i).cell == cell)
             draw_car(car_get(i));
 }
@@ -317,7 +321,7 @@ static void pick_car_cell(Car &car, bool swap_xy, bool descending)
 {
     CarVertex *v = car.vertices();
     uint16_t n = car.vertex_count();
-    uint8_t ex = G->eye.x.cell(), ey = G->eye.y.cell();
+    uint8_t ex = camera.eye.x.cell(), ey = camera.eye.y.cell();
     int8_t best_x = 0x7f, best_y = 0x7f;
     uint8_t cell_x = 0, cell_y = 0;
 
@@ -363,32 +367,32 @@ static void draw_grid_cell(uint8_t row_c, uint8_t col_c, ProjVertex *lo, ProjVer
 /* orig 1000:1965 (and its second half, FUN_1965_NP) */
 void draw_terrain()
 {
-    uint8_t octant = (uint8_t)(G->eye_angles.yaw.bits() >> 8);
+    uint8_t octant = (uint8_t)(camera.eye_angles.yaw.bits() >> 8);
 
     /* view mostly along x: traverse by columns */
     bool swap_xy = !parity_even(octant & 0x60);
     bool descending = !swap_xy ? !parity_even(octant & 0xa0) : !(octant & 0x80);
 
-    G->terrain_row_cur = 0;
-    G->terrain_row_prev = 1;
-    G->terrain_swap_xy = (uint8_t)swap_xy;
+    render.terrain_row_cur = 0;
+    render.terrain_row_prev = 1;
+    render.terrain_swap_xy = (uint8_t)swap_xy;
     compute_visible_area(swap_xy);
-    for (int i = 0; i < G->num_cars; i++)
+    for (int i = 0; i < world.num_cars; i++)
         pick_car_cell(car_get(i), swap_xy, descending);
 
-    uint8_t eye_col = swap_xy ? G->eye.y.cell() : G->eye.x.cell();
-    uint8_t first = (uint8_t)G->vis_row_first, last = (uint8_t)G->vis_row_last;
+    uint8_t eye_col = swap_xy ? camera.eye.y.cell() : camera.eye.x.cell();
+    uint8_t first = (uint8_t)render.vis_row_first, last = (uint8_t)render.vis_row_last;
     uint8_t end_row = descending ? last : first;     /* no cells to draw on it */
-    int16_t row_index = descending ? G->vis_row_last : G->vis_row_first;
+    int16_t row_index = descending ? render.vis_row_last : render.vis_row_first;
     uint8_t row = (uint8_t)row_index;
 
     for (;;) {
-        ScanEdge *span = &G->vis_span[row_index];
+        ScanEdge *span = &render.vis_span[row_index];
         ScanEdge *prev = descending ? span + 1 : span - 1;
         uint8_t left = (uint8_t)span->left, right = (uint8_t)span->right;
         uint8_t prev_left = (uint8_t)prev->left, prev_right = (uint8_t)prev->right;
-        ProjVertex *cur_buf = G->terrain_rows[G->terrain_row_cur];
-        ProjVertex *prev_buf = G->terrain_rows[G->terrain_row_prev];
+        ProjVertex *cur_buf = render.terrain_rows[render.terrain_row_cur];
+        ProjVertex *prev_buf = render.terrain_rows[render.terrain_row_prev];
         ProjVertex *lo = descending ? cur_buf : prev_buf;
         ProjVertex *hi = descending ? prev_buf : cur_buf;
         uint8_t row_c = descending ? row : (uint8_t)(row - 1);
@@ -421,8 +425,8 @@ void draw_terrain()
             row++;
             row_index++;
         }
-        G->terrain_row_cur ^= 1;
-        G->terrain_row_prev ^= 1;
+        render.terrain_row_cur ^= 1;
+        render.terrain_row_prev ^= 1;
     }
 }
 
@@ -436,7 +440,7 @@ void draw_sprite(int16_t sx, int16_t sy, int16_t depth, const SpriteQuad &q, con
 {
     int16_t h = screen_clamp(q.size * render_scale / depth);
     const uint32_t *uv = q.uv;
-    PolyVertex *o = G->poly_buf[0].v;
+    PolyVertex *o = render.poly_buf[0].v;
     static const int8_t corner[4][2] = { { -1, -1 }, { 1, -1 }, { 1, 1 }, { -1, 1 } };
     for (int i = 0; i < 4; i++) {
         o[i].sx = (int16_t)(sx + corner[i][0] * h);
@@ -444,7 +448,7 @@ void draw_sprite(int16_t sx, int16_t sy, int16_t depth, const SpriteQuad &q, con
         o[i].a = (uint16_t)uv[i];
         o[i].b = (uint16_t)(uv[i] >> 16);
     }
-    G->poly_buf[0].count = 4;
+    render.poly_buf[0].count = 4;
     draw_textured(tex);
 }
 
@@ -453,18 +457,18 @@ void draw_sprite(int16_t sx, int16_t sy, int16_t depth, const SpriteQuad &q, con
 void draw_particles()
 {
     const uint8_t *tex = segments.textures.data();
-    for (uint16_t i = 0; i < G->particle_count; i++) {
-        const Particle &p = G->particles[i];
+    for (uint16_t i = 0; i < world.particle_count; i++) {
+        const Particle &p = world.particles[i];
         uint8_t a = p.pos.x.cell(), b = p.pos.y.cell();
-        int16_t row = G->terrain_swap_xy ? a : b;
-        int16_t col = G->terrain_swap_xy ? b : a;
-        if (row < G->vis_row_first || row > G->vis_row_last)
+        int16_t row = render.terrain_swap_xy ? a : b;
+        int16_t col = render.terrain_swap_xy ? b : a;
+        if (row < render.vis_row_first || row > render.vis_row_last)
             continue;
-        if (col < G->vis_span[row].left || col > G->vis_span[row].right)
+        if (col < render.vis_span[row].left || col > render.vis_span[row].right)
             continue;
 
         ProjVertex v;
-        bool in_front = render_scale > 1 ? view_transform_fine(p.pos - G->eye, &v)
+        bool in_front = render_scale > 1 ? view_transform_fine(p.pos - camera.eye, &v)
                       : view_transform_units(p.pos.x.units(), p.pos.y.units(), p.pos.z.units(), &v);
         if (!in_front)
             continue;

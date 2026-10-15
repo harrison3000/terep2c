@@ -2,11 +2,16 @@
  * Loading a track directory: the map layers (PCX images), the fog and
  * translucency tables, and up to five cars.
  *
- * File names are the ones stored in the data segment; the host opens them
+ * File names are the original's (fname_*, terep.hpp); the host opens them
  * (data_fopen, case-insensitive on systems that care).
  */
 #include <cstdlib>
 #include "terep.hpp"
+
+/* The PCX being read (the original kept them in its data segment). */
+static PcxHeader pcx_header;
+static uint16_t  pcx_width, pcx_height;
+static uint8_t   pcx_buffer[0x300];
 
 /* ------------------------------------------------------------------------
  * PCX (8-bit, single plane, RLE)
@@ -16,22 +21,22 @@
  * fewer than 8 bits per pixel, or 8 bits with no planes.  orig 1000:5a95 */
 static bool pcx_read_header(FILE *f)
 {
-    fread(&G->pcx_header, 1, sizeof G->pcx_header, f);
-    G->pcx_width = (uint16_t)(G->pcx_header.xmax - G->pcx_header.xmin + 1);
-    G->pcx_height = (uint16_t)(G->pcx_header.ymax - G->pcx_header.ymin + 1);
-    uint8_t bpp = G->pcx_header.bits_per_pixel;
-    return !(bpp < 8 || (bpp == 8 && G->pcx_header.planes == 0));
+    fread(&pcx_header, 1, sizeof pcx_header, f);
+    pcx_width = (uint16_t)(pcx_header.xmax - pcx_header.xmin + 1);
+    pcx_height = (uint16_t)(pcx_header.ymax - pcx_header.ymin + 1);
+    uint8_t bpp = pcx_header.bits_per_pixel;
+    return !(bpp < 8 || (bpp == 8 && pcx_header.planes == 0));
 }
 
 /* Decode the image into a segment, at most 256 x 256 pixels: wider
  * images are cropped (rows are packed, not padded to 256).  The file is
- * read through G->pcx_buffer in 768-byte chunks.  orig 1000:5acf */
+ * read through pcx_buffer in 768-byte chunks.  orig 1000:5acf */
 static void pcx_decode(FILE *f, uint8_t *dst)
 {
-    uint16_t in = sizeof G->pcx_buffer;     /* buffer empty */
+    uint16_t in = sizeof pcx_buffer;     /* buffer empty */
     uint16_t out = 0;
     uint8_t value = 0, repeat = 0;
-    int16_t rows = (int16_t)G->pcx_height > 0x100 ? 0x100 : (int16_t)G->pcx_height;
+    int16_t rows = (int16_t)pcx_height > 0x100 ? 0x100 : (int16_t)pcx_height;
     uint16_t row = (uint16_t)rows;
 
     do {
@@ -40,24 +45,24 @@ static void pcx_decode(FILE *f, uint8_t *dst)
             if (repeat) {
                 repeat--;
             } else {
-                if (in == sizeof G->pcx_buffer) {
-                    fread(G->pcx_buffer, 1, sizeof G->pcx_buffer, f);
+                if (in == sizeof pcx_buffer) {
+                    fread(pcx_buffer, 1, sizeof pcx_buffer, f);
                     in = 0;
                 }
-                value = G->pcx_buffer[in++];
+                value = pcx_buffer[in++];
                 if ((value & 0xc0) == 0xc0) {
                     repeat = (uint8_t)((value & 0x3f) - 1);   /* a count of 0 gives 255 */
-                    if (in == sizeof G->pcx_buffer) {
-                        fread(G->pcx_buffer, 1, sizeof G->pcx_buffer, f);
+                    if (in == sizeof pcx_buffer) {
+                        fread(pcx_buffer, 1, sizeof pcx_buffer, f);
                         in = 0;
                     }
-                    value = G->pcx_buffer[in++];
+                    value = pcx_buffer[in++];
                 }
             }
             if (x < 0x100)
                 dst[out++] = value;
             x++;
-        } while (x < G->pcx_width);
+        } while (x < pcx_width);
     } while (--row);
 }
 
@@ -103,13 +108,13 @@ static void load_map()
         fclose(f);
         return;
     }
-    fread(G->palette, 1, sizeof G->palette, f);
+    fread(map_tables.palette, 1, sizeof map_tables.palette, f);
     fseek(f, 0x80, SEEK_SET);
     pcx_decode(f, colormap());
     fclose(f);
 
-    read_table(fname_fog, G->fog_table, sizeof G->fog_table);
-    read_table(fname_smoke, G->shade_table, sizeof G->shade_table);
+    read_table(fname_fog, map_tables.fog_table, sizeof map_tables.fog_table);
+    read_table(fname_smoke, map_tables.shade_table, sizeof map_tables.shade_table);
 }
 
 /* ------------------------------------------------------------------------
@@ -176,7 +181,7 @@ const char *car_pcx_name(int i) { return car_pcx_names[i]; }
  * sixth car took its name from the bytes after them). */
 static void load_cars()
 {
-    G->num_cars = 0;
+    world.num_cars = 0;
     for (int i = 0; i < MAX_CARS; i++) {
         const char *dat = car_dat_name(i), *pcx = car_pcx_name(i);
         Car &car = cars[i];
@@ -185,7 +190,7 @@ static void load_cars()
             break;
         find_ref_vertex(car);
         load_car_skin(car, pcx);
-        G->num_cars++;
+        world.num_cars++;
     }
 }
 
@@ -202,26 +207,26 @@ void game_free()
 /* Returns 0 on success.  orig f_init */
 int game_init()
 {
-    /* everything outside the data segment as at the start of the program */
+    /* what state_reset does not cover, as at the start of the program */
     memset(keys, 0xff, sizeof keys);
     game_free();
     game_frame_reset();
 
-    G->num_cars = -2;
-    G->gravity = 0x1800;
-    G->spring_break_stretch = 0x800;
-    G->spring_break_squash = (int16_t)0xf000;
-    G->clip_left = 0;
-    G->screen_cx = 160;
-    G->clip_right = 319;
-    G->clip_top = 0;
-    G->screen_cy = 80;
-    G->clip_bottom = 199;
+    world.num_cars = -2;
+    world.gravity = 0x1800;
+    world.spring_break_stretch = 0x800;
+    world.spring_break_squash = (int16_t)0xf000;
+    render.clip_left = 0;
+    render.screen_cx = 160;
+    render.clip_right = 319;
+    render.clip_top = 0;
+    render.screen_cy = 80;
+    render.clip_bottom = 199;
 
     FILE *cfg = data_fopen(fname_cfg);   /* optional spring limits */
     if (cfg) {
-        fread(&G->spring_break_stretch, 1, 2, cfg);
-        fread(&G->spring_break_squash, 1, 2, cfg);
+        fread(&world.spring_break_stretch, 1, 2, cfg);
+        fread(&world.spring_break_squash, 1, 2, cfg);
         fclose(cfg);
     }
 
@@ -233,6 +238,6 @@ int game_init()
     if (render_scale > 1)
         segments.hires_screen.assign((size_t)screen_w() * screen_h(), 0);
     sound_init();
-    G->sim_running = 1;
+    world.sim_running = 1;
     return 0;
 }

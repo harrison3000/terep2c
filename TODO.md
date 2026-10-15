@@ -6,8 +6,8 @@
       carregar de forma inteligente, para que as structs não precisem mais ser `packed`.
 - [x] Tipos `Angle` (0x10000 = 360°) e `Q15` (seno/cosseno, matrizes), como `Pos`/`Vec3`, no
       lugar de `uint16_t`/`int16_t` soltos (`build_matrix`, câmeras, rodas).
-- [ ] Quebrar o `DataSeg` em estruturas por assunto (jogo, câmeras, renderizador, tabelas).
-      Os testes já não dependem do layout (só gravações do Win16).
+- [x] Quebrar o `DataSeg` em estruturas por assunto: `world`, `camera`, `render`, `map_tables`,
+      `phys` (terep.hpp, state.cpp).
 - [ ] `make test` mais completo: mais gravações do Win16 (tests/roteiro-gravacao.md), teste
       rápido em 4x com ASan/UBSan, build com g++ e clang; CI no GitHub Actions.
 - [x] Corrigir o bug do pulo que corrompe o título (o carro procura o ponto mais baixo como
