@@ -9,7 +9,7 @@ World      world;
 Camera     camera;
 Render     render;
 MapTables  map_tables;
-PhysicsState phys;
+Contact    contact;
 
 void state_reset()
 {
@@ -17,19 +17,15 @@ void state_reset()
     camera = Camera();
     render = Render();
     map_tables = MapTables();
-    phys = PhysicsState();
+    contact = Contact();
 
     /* cameras: chase camera (F4) in both views, at the middle of the map */
     camera.cam_mode[0] = camera.cam_mode[1] = 3;
     const Pos centre = { Coord::from_units(0x8080), Coord::from_units(0x9080), Coord::from_units(0x0400) };
     camera.chase_cam[0].pos = camera.chase_cam[1].pos = camera.eye = centre;
-    camera.cars_center[0] = (int16_t)0x8080;
-    camera.cars_center[1] = (int16_t)0x8080;
-    camera.cars_center[2] = 0x0400;
     camera.chase_height = 0x100;
     camera.chase_distance = 0x400;
     render.near_clip = 30;
 
     render.fog_start = 0x600;
-    render.poly_color = 0x0f0f;
 }

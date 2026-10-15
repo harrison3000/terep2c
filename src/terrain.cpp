@@ -56,18 +56,15 @@ int16_t terrain_height(uint16_t x, uint16_t y)
     return terrain_interpolate(terrain_sample(x, y));
 }
 
-/* Same as terrain_height, but also records what the physics needs about
- * the ground under the point: surface type and slope.  orig 1000:532e */
-int16_t ground_probe(uint16_t x, uint16_t y)
+/* Same as terrain_height, plus what the physics needs about the ground
+ * under the point: surface type and slope.  orig 1000:532e */
+Ground ground_probe(uint16_t x, uint16_t y)
 {
     TerrainSample s = terrain_sample(x, y);
-    phys.ground_surface = colormap()[s.cell];
-    if (!s.upper) {
-        phys.ground_slope_x = s.dz_u;
-        phys.ground_slope_y = s.dz_v;
-    } else {
-        phys.ground_slope_x = (int16_t)-s.dz_u;
-        phys.ground_slope_y = (int16_t)-s.dz_v;
-    }
-    return terrain_interpolate(s);
+    Ground g;
+    g.surface = colormap()[s.cell];
+    g.slope_x = s.upper ? (int16_t)-s.dz_u : s.dz_u;
+    g.slope_y = s.upper ? (int16_t)-s.dz_v : s.dz_v;
+    g.height = terrain_interpolate(s);
+    return g;
 }

@@ -252,6 +252,16 @@ static bool cell_visible(const CellQuad &q, uint16_t count)
     return q.swap_xy ? !poly_hidden : poly_hidden;
 }
 
+/* The fog table's row for a distance (/256).  The original let it run past
+ * the table, into the translucency table that follows it (and further,
+ * which no view reaches: the last translucency row is used here). */
+static const uint8_t *fog_row(uint8_t r)
+{
+    if (r < 17)
+        return map_tables.fog_table[r];
+    return map_tables.shade_table[r - 17 < 16 ? r - 17 : 15];
+}
+
 /* One map cell as two triangles: textured with maptex when near, a flat
  * fogged colour (second triangle one shade darker) when far.
  * orig 1000:1cde / 1000:1e3a */
@@ -260,20 +270,20 @@ static void draw_cell(const CellQuad &q, uint8_t color)
     int16_t dist = (int16_t)((int16_t)(q.d1.y + q.s0.y) >> 2);
 
     if (dist >= render.fog_start) {
-        uint8_t c = (&map_tables.fog_table[0][0])[(uint8_t)(dist >> 8) * 256 + color];   /* may run past the table */
-        render.poly_color = (uint16_t)(c << 8 | c);
+        uint8_t c = fog_row((uint8_t)(dist >> 8))[color];
+        uint16_t color = (uint16_t)(c << 8 | c);
         poly_begin(q.d1, 0);
         poly_add(q.d0, 0);
         poly_add(q.s0, 0);
         if (cell_visible(q, poly_end(q.d1, 0)))
-            draw_flat();
+            draw_flat(color);
         poly_begin(q.d1, 0);
         poly_add(q.s0, 0);
         poly_add(q.s1, 0);
         if (cell_visible(q, poly_end(q.d1, 0))) {
-            if (render.poly_color & 0x0f)
-                render.poly_color -= 0x101;
-            draw_flat();
+            if (color & 0x0f)
+                color -= 0x101;
+            draw_flat(color);
         }
         return;
     }
@@ -373,8 +383,8 @@ void draw_terrain()
     bool swap_xy = !parity_even(octant & 0x60);
     bool descending = !swap_xy ? !parity_even(octant & 0xa0) : !(octant & 0x80);
 
-    render.terrain_row_cur = 0;
-    render.terrain_row_prev = 1;
+    static ProjVertex rows[2][256];     /* projected grid points of two rows, ping-pong */
+    int cur = 0;
     render.terrain_swap_xy = (uint8_t)swap_xy;
     compute_visible_area(swap_xy);
     for (int i = 0; i < world.num_cars; i++)
@@ -391,8 +401,7 @@ void draw_terrain()
         ScanEdge *prev = descending ? span + 1 : span - 1;
         uint8_t left = (uint8_t)span->left, right = (uint8_t)span->right;
         uint8_t prev_left = (uint8_t)prev->left, prev_right = (uint8_t)prev->right;
-        ProjVertex *cur_buf = render.terrain_rows[render.terrain_row_cur];
-        ProjVertex *prev_buf = render.terrain_rows[render.terrain_row_prev];
+        ProjVertex *cur_buf = rows[cur], *prev_buf = rows[cur ^ 1];
         ProjVertex *lo = descending ? cur_buf : prev_buf;
         ProjVertex *hi = descending ? prev_buf : cur_buf;
         uint8_t row_c = descending ? row : (uint8_t)(row - 1);
@@ -425,8 +434,7 @@ void draw_terrain()
             row++;
             row_index++;
         }
-        render.terrain_row_cur ^= 1;
-        render.terrain_row_prev ^= 1;
+        cur ^= 1;
     }
 }
 

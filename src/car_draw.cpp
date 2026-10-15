@@ -374,9 +374,8 @@ void Program::run(uint32_t i)
         }
         case OP_FLAT: {                 /* FUN_1000_1408.LAB_LOC_9 */
             uint16_t count = draw_outline(o);
-            render.poly_color = o.word;
             if (outline_visible(count))
-                draw_flat();
+                draw_flat(o.word);
             break;
         }
         case OP_NOP:                    /* FUN_1000_1408.LAB_LOC_11 */
@@ -386,7 +385,6 @@ void Program::run(uint32_t i)
                 draw_shaded();
             break;
         case OP_SHADED_TAB:             /* FUN_1000_1408.LAB_LOC_14 */
-            render.poly_color = o.word;
             if (outline_visible(draw_outline(o)))
                 draw_shaded();
             break;

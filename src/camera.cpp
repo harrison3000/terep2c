@@ -15,19 +15,23 @@ static int16_t mid16(int32_t v)
     return (int16_t)((uint32_t)v >> 8);
 }
 
-static void eye_at_vertex(Car &car)
+/* The eye at the car's reference vertex; returns the car's axes (across,
+ * along).  The original kept them in its data segment (00e0, 00ec). */
+struct CarAxes {
+    Vec3 x, y;
+};
+static CarAxes eye_at_vertex(Car &car)
 {
     camera.eye = car.ref_vertex().pos;
-    camera.cam_axis_x = car.axis_x();
-    camera.cam_axis_y = car.axis_y();
+    return { car.axis_x(), car.axis_y() };
 }
 
 /* orig 1000:0693 */
 static void camera_on_car(Car &car)
 {
-    eye_at_vertex(car);
-    int16_t xx = mid16(camera.cam_axis_x.x), xy = mid16(camera.cam_axis_x.y), xz = mid16(camera.cam_axis_x.z);
-    int16_t yx = mid16(camera.cam_axis_y.x), yy = mid16(camera.cam_axis_y.y), yz = mid16(camera.cam_axis_y.z);
+    CarAxes axes = eye_at_vertex(car);
+    int16_t xx = mid16(axes.x.x), xy = mid16(axes.x.y), xz = mid16(axes.x.z);
+    int16_t yx = mid16(axes.y.x), yy = mid16(axes.y.y), yz = mid16(axes.y.z);
 
     Angle yaw = fx_atan2((int16_t)-yx, yy);
     camera.eye_angles.yaw = yaw;
@@ -47,10 +51,10 @@ static void camera_on_car(Car &car)
 /* orig 1000:073f */
 static void camera_on_car_smooth(Car &car)
 {
-    eye_at_vertex(car);
+    CarAxes axes = eye_at_vertex(car);
     uint16_t ex = camera.eye.x.units(), ey = camera.eye.y.units(), ez = camera.eye.z.units();
 
-    Angle yaw = fx_atan2((int16_t)-mid16(camera.cam_axis_y.x), mid16(camera.cam_axis_y.y));
+    Angle yaw = fx_atan2((int16_t)-mid16(axes.y.x), mid16(axes.y.y));
     camera.eye_angles.yaw = yaw;
 
     /* the ground at (sin, -cos) of an angle >> shift from the eye */
@@ -147,14 +151,13 @@ static void camera_all_cars()
         sy += ref.y.units();
         sz += ref.z.units();
     }
-    camera.cars_center[0] = (int16_t)(sx / n);
-    camera.cars_center[1] = (int16_t)(sy / n);
-    camera.cars_center[2] = (int16_t)((int32_t)sz / (int32_t)n);
+    /* the average position of the cars (orig DS 00c8) */
+    uint16_t cx = (uint16_t)(int16_t)(sx / n), cy = (uint16_t)(int16_t)(sy / n);
+    int16_t cz = (int16_t)((int32_t)sz / (int32_t)n);
 
-    uint16_t cx = (uint16_t)camera.cars_center[0], cy = (uint16_t)camera.cars_center[1];
     camera.eye_angles.yaw = heading_to((int16_t)(cx - camera.eye.x.units()), (int16_t)(cy - camera.eye.y.units()));
     camera.eye = chase_follow(cx, cy, camera.eye_angles.yaw, camera.eye);
-    camera.eye_angles.pitch = smooth_pitch(camera.eye_angles.pitch, (int16_t)(camera.cars_center[2] - camera.eye.z.units()));
+    camera.eye_angles.pitch = smooth_pitch(camera.eye_angles.pitch, (int16_t)(cz - camera.eye.z.units()));
     camera.eye_angles.roll = {};
 }
 

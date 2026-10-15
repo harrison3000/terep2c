@@ -200,6 +200,8 @@ struct CarSpring {
     int softness() const { return (uint8_t)((flags >> 8) + 1) & 31; }
 };
 
+struct Hull;                        /* collision planes (physics.cpp) */
+
 struct Car {
     enum Drive : uint16_t { REAR = 0, FRONT = 1, ALL = 2 };
 
@@ -234,8 +236,8 @@ struct Car {
     void update_wheels();
     void update_springs();
     void update_points();
-    void build_hull();
-    void push_points_of(Car &other);
+    void build_hull(Hull &h);
+    void push_points_of(const Hull &h, Car &other);
     void jump(bool keep_point);
 
 private:
@@ -291,10 +293,7 @@ struct Camera {
     ChaseCam chase_cam[2];                   /* 0080: free-floating camera state, one per player */
     Pos eye;                                 /* 00aa: camera position (16.16) */
     Angles eye_angles;                       /* 00c2: orientation of the camera */
-    int16_t cars_center[3];                  /* 00c8: average car position (camera 5) */
     Q15 view_matrix[9];                      /* 00ce: rotation, world -> camera */
-    Vec3 cam_axis_x;                         /* 00e0: axes of the followed car (cameras 1 and 2) */
-    Vec3 cam_axis_y;                         /* 00ec */
     int16_t chase_height;                    /* 011c: numpad +/- */
     int16_t chase_distance;                  /* 011e: numpad / and * */
     int16_t yaw_sin7;                        /* 05f7: sin(yaw) >> 7 */
@@ -306,7 +305,6 @@ extern Camera camera;
 struct Render {
     int16_t near_clip;                       /* 0120: points closer than this are not projected */
     int16_t fog_start;                       /* 05f5: terrain farther than this is flat-shaded (F10 toggles) */
-    uint16_t poly_color;                     /* db12: colour for flat polygons (two copies of the byte) */
     int16_t screen_cx;                       /* dbb8: projection centre */
     int16_t screen_cy;                       /* dbba */
     int16_t clip_top;                        /* dbbc */
@@ -315,12 +313,7 @@ struct Render {
     int16_t clip_right;                      /* dbc2 */
     PolyBuf poly_buf[2];                     /* db14: [0] polygon being drawn, [1] scratch for clipping */
     ProjVertex car_proj[120];                /* 0126: car vertices transformed to camera space (the last 20 were car_uv_table) */
-    int16_t span_top;                        /* dbc4 */
-    int16_t span_bottom;                     /* dbc6 */
     uint8_t terrain_swap_xy;                 /* 05fb: terrain is traversed column-major */
-    ProjVertex terrain_rows[2][256];         /* 05ff: two rows of projected terrain grid points (ping-pong) */
-    uint16_t terrain_row_cur;                /* 19ff: row being filled, 0 or 1 (the original: byte offset 0 or 0xa00) */
-    uint16_t terrain_row_prev;               /* 1a01 */
     PointBuf vis_buf[2];                     /* e530: visible-terrain hexagon in map cells, [1] = clipping scratch */
     int16_t vis_row_first;                   /* e58c: first map row with visible cells */
     int16_t vis_row_last;                    /* e58e */
@@ -342,24 +335,19 @@ struct MapTables {
 };
 extern MapTables map_tables;
 
-/* Ground contact and collision planes, working state of physics.cpp and terrain.cpp. */
-struct PhysicsState {
+/* The last ground contact (physics.cpp).  Not only scratch: the particles
+ * that a car-vs-car push spawns take their velocity from the contact frame
+ * and slide of the last vertex that touched the ground, maybe ticks ago. */
+struct Contact {
     int32_t ground_n1[2];                    /* e9a0: contact frame (Q31 sin/cos pairs, low word 0) */
     int32_t ground_n2[2];                    /* e9a8 */
-    int16_t ground_slope_x;                  /* ea24 */
-    int16_t ground_slope_y;                  /* ea26 */
-    uint8_t ground_surface;                  /* ea28: colour-map byte under the last tested point */
-    uint16_t hull_plane_count;               /* ea99: (the original counted bytes) */
-    Vec3 hull_normal[16];                    /* ea9b: collision planes of the car being tested: normal */
-    Pos hull_point[16];                      /* eb5b: and a point on each */
-    struct {                                 /* e9c8..e9da: shared by the slide/grip helpers */
-        int32_t penetration;                 /* velocity into the ground (negative) */
-        int32_t slide[2];                    /* tangential velocity in the contact frame */
-        int32_t slip_sin, slip_cos;          /* wheel heading in the contact plane */
-        int32_t wheel_speed;
-    } contact;
+    uint8_t surface;                         /* ea28: colour-map byte under the point (0: a wall, a car) */
+    int32_t penetration;                     /* e9c8: velocity into the ground (negative) */
+    int32_t slide[2];                        /* e9cc: tangential velocity in the contact frame */
+    int32_t slip_sin, slip_cos;              /* e9be, e9c2: wheel heading in the contact plane */
+    int32_t wheel_speed;                     /* e9da */
 };
-extern PhysicsState phys;
+extern Contact contact;
 
 extern uint8_t keys[128];           /* [0] = last scancode, [sc] bit 7 clear while held */
 
@@ -439,7 +427,13 @@ void     transpose(Q15 m[9]);
 
 /* terrain.cpp */
 int16_t  terrain_height(uint16_t x, uint16_t y);
-int16_t  ground_probe(uint16_t x, uint16_t y);
+/* What the physics needs about the ground under a point. */
+struct Ground {
+    int16_t height;
+    int16_t slope_x, slope_y;       /* height deltas along x and y over a cell */
+    uint8_t surface;                /* colour-map byte */
+};
+Ground   ground_probe(uint16_t x, uint16_t y);
 
 /* physics.cpp */
 void     physics_tick();
@@ -453,7 +447,7 @@ void     poly_begin(const ProjVertex &p, uint32_t attr);
 void     poly_add(const ProjVertex &p, uint32_t attr);
 uint16_t poly_end(const ProjVertex &p, uint32_t attr);
 bool     poly_backfacing();
-void     draw_flat();
+void     draw_flat(uint16_t color);      /* two bytes: a dither pattern, >= 0xf0f0 translucent */
 void     draw_shaded();
 void     draw_textured(const uint8_t *tex);     /* tex: the original's FS segment */
 

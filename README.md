@@ -134,7 +134,7 @@ src/            the game (no OS or library dependencies)
   terep.hpp     value types (Vec3, Coord, Pos), structures (Car, CarVertex, CarSpring,
                 Particle, ChaseCam, ProjVertex, PcxHeader...) and prototypes
   fixed.hpp     fixed point: Angle (0x10000 = 360°), Q15 (sine/cosine, matrices), multiplications
-  state.cpp     the global state (world, camera, render, map_tables, phys) and its initial values
+  state.cpp     the global state (world, camera, render, map_tables, contact) and its initial values
   font.pbm      the font (plain PBM, 5x5 glyphs one below the other), embedded with #embed
   math.cpp      table-driven sine/cosine, atan2, vector length, rotation matrix
   terrain.cpp   terrain height (2 triangles per heightmap cell)
@@ -205,9 +205,15 @@ still uses a copy and writes it back, or a pointer, where a reference would do n
 The original keeps everything in one 64 KB data segment, addressed by offsets. Here the state is
 a few global structures, split by subject (`terep.hpp`, each field with its original offset in a
 comment): `world` (gravity, cars, players, particles), `camera`, `render` (clipping, polygons,
-visible terrain, scanline tables), `map_tables` (palette, fog and translucency tables) and `phys`
-(ground contact, collision planes). `state_reset()` (`state.cpp`) gives them their initial
-values. The asm's scratch variables became local variables. Besides them: the cars, the keyboard
+visible terrain, scanline tables), `map_tables` (palette, fog and translucency tables) and
+`contact` (the last ground contact). `state_reset()` (`state.cpp`) gives them their initial
+values. Only what really carries state from one call to the next is there: the asm's scratch
+variables, and what the original passed from one function to the next through the segment (the
+polygon colour, the scanline range, the terrain rows, the collision planes, the ground probe,
+the camera's axes), are locals and parameters now. Some of what stayed is less obvious than it
+looks: the particles of a car-vs-car push take their velocity from the last ground contact, and
+the visible terrain is kept from the last frame when the view hexagon is clipped away. Besides
+them: the cars, the keyboard
 (`keys`), and `segments` (heightmap, colour map, textures, screen: 64 KB vectors indexed with
 16-bit offsets that wrap like the original's; each car's skin is in its `Car`).
 

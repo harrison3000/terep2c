@@ -301,16 +301,16 @@ void Car::update_springs()
 static void set_contact_frame(Q15 s1, Q15 c1, Q15 s2, Q15 c2)
 {
     /* only the high words are ever written; the low words stay 0 */
-    phys.ground_n1[0] = s1.q31();
-    phys.ground_n1[1] = c1.q31();
-    phys.ground_n2[0] = s2.q31();
-    phys.ground_n2[1] = c2.q31();
+    contact.ground_n1[0] = s1.q31();
+    contact.ground_n1[1] = c1.q31();
+    contact.ground_n2[0] = s2.q31();
+    contact.ground_n2[1] = c2.q31();
 }
 
-static int32_t n1s() { return phys.ground_n1[0]; }
-static int32_t n1c() { return phys.ground_n1[1]; }
-static int32_t n2s() { return phys.ground_n2[0]; }
-static int32_t n2c() { return phys.ground_n2[1]; }
+static int32_t n1s() { return contact.ground_n1[0]; }
+static int32_t n1c() { return contact.ground_n1[1]; }
+static int32_t n2s() { return contact.ground_n2[0]; }
+static int32_t n2c() { return contact.ground_n2[1]; }
 
 static inline int32_t mulq31(int32_t a, int32_t b) { return mul_hi32(a, b) << 1; }
 
@@ -321,12 +321,12 @@ static inline int32_t mulq31(int32_t a, int32_t b) { return mul_hi32(a, b) << 1;
  * orig 1000:4c68 */
 static bool contact_grips(int32_t *div)
 {
-    int32_t a = phys.contact.slide[0] < 0 ? -phys.contact.slide[0] : phys.contact.slide[0];
-    int32_t b = phys.contact.slide[1] < 0 ? -phys.contact.slide[1] : phys.contact.slide[1];
+    int32_t a = contact.slide[0] < 0 ? -contact.slide[0] : contact.slide[0];
+    int32_t b = contact.slide[1] < 0 ? -contact.slide[1] : contact.slide[1];
     int32_t slide = a + b;
-    unsigned surf = phys.ground_surface >> 4;
+    unsigned surf = contact.surface >> 4;
     int32_t grip = surface_grip[surf];
-    int32_t load = -phys.contact.penetration;
+    int32_t load = -contact.penetration;
     if (load >= surface_max_load[surf])
         load = surface_max_load[surf];
     int32_t limit = load / grip;
@@ -342,8 +342,8 @@ static void spawn_particle(const CarVertex &v)
     Particle &p = world.particles[world.particle_count];
     p.pos = v.pos;
     p.pos.z -= (int32_t)Coord::from_units((uint16_t)v.radius).raw;
-    p.vel = { mulq31(phys.contact.slide[0], n1c()), mulq31(phys.contact.slide[1], n2c()), v.vel.z };
-    p.kind = phys.ground_surface;
+    p.vel = { mulq31(contact.slide[0], n1c()), mulq31(contact.slide[1], n2c()), v.vel.z };
+    p.kind = contact.surface;
     p.life = 100;
     world.particle_count++;
 }
@@ -362,11 +362,11 @@ static void slide_point(CarVertex &v, int32_t sx, int32_t sy)
 /* Body point: plain friction.  orig 1000:4cc3 */
 static void body_friction(CarVertex &v)
 {
-    int32_t sx = phys.contact.slide[0], sy = phys.contact.slide[1], div;
+    int32_t sx = contact.slide[0], sy = contact.slide[1], div;
     if (!contact_grips(&div)) {
         spawn_particle(v);
-        sy = phys.contact.slide[1] / div;
-        sx = phys.contact.slide[0] / div;
+        sy = contact.slide[1] / div;
+        sx = contact.slide[0] / div;
     }
     slide_point(v, sx, sy);
 }
@@ -377,18 +377,18 @@ static void wheel_friction(CarVertex &v)
     int32_t div;
     if (!contact_grips(&div)) {
         spawn_particle(v);
-        int32_t sy = phys.contact.slide[1] / div;
-        int32_t sx = phys.contact.slide[0] / div;
-        phys.contact.slide[0] = sx;
-        phys.contact.slide[1] = sy;
+        int32_t sy = contact.slide[1] / div;
+        int32_t sx = contact.slide[0] / div;
+        contact.slide[0] = sx;
+        contact.slide[1] = sy;
     }
     /* the part of the slide along the wheel goes into the wheel */
-    int32_t along = mul_hi32(phys.contact.slide[0], phys.contact.slip_sin)
-                  - mul_hi32(phys.contact.slide[1], phys.contact.slip_cos);
-    phys.contact.wheel_speed -= along;
-    phys.contact.slide[0] += mul_hi32(along, phys.contact.slip_sin);
-    phys.contact.slide[1] -= mul_hi32(along, phys.contact.slip_cos);
-    slide_point(v, phys.contact.slide[0], phys.contact.slide[1]);
+    int32_t along = mul_hi32(contact.slide[0], contact.slip_sin)
+                  - mul_hi32(contact.slide[1], contact.slip_cos);
+    contact.wheel_speed -= along;
+    contact.slide[0] += mul_hi32(along, contact.slip_sin);
+    contact.slide[1] -= mul_hi32(along, contact.slip_cos);
+    slide_point(v, contact.slide[0], contact.slide[1]);
 }
 
 /* Heading of the wheel in the contact plane.  orig 1000:4c26 */
@@ -409,7 +409,7 @@ void Car::ground_contact(CarVertex &v, uint16_t index)
     if (vn >= 0)
         return;                         /* moving away from the surface */
 
-    phys.contact.penetration = vn;
+    contact.penetration = vn;
     if (vn <= -0x60000)
         sfx_hit(0);
 
@@ -424,8 +424,8 @@ void Car::ground_contact(CarVertex &v, uint16_t index)
     v.vel.z -= d;
     v.pos.z -= d << 1;
 
-    phys.contact.slide[0] = mulq31(v.vel.x, n1c()) + mulq31(v.vel.z, n1s());
-    phys.contact.slide[1] = mulq31(v.vel.y, n2c()) + mulq31(v.vel.z, n2s());
+    contact.slide[0] = mulq31(v.vel.x, n1c()) + mulq31(v.vel.z, n1s());
+    contact.slide[1] = mulq31(v.vel.y, n2c()) + mulq31(v.vel.z, n2s());
 
     if (!v.is_wheel()) {
         body_friction(v);
@@ -434,15 +434,15 @@ void Car::ground_contact(CarVertex &v, uint16_t index)
 
     int32_t speed;
     Vec3 dir = wheel_direction(index, &speed, mulq31(v.vel.z, n2s()));
-    phys.contact.wheel_speed = -speed;
+    contact.wheel_speed = -speed;
     Angle heading = wheel_heading(dir);
-    phys.contact.slip_cos = fx_cos(heading).q31();
-    phys.contact.slip_sin = fx_sin(heading).q31();
-    int32_t w2 = phys.contact.wheel_speed << 1;
-    phys.contact.slide[0] += mul_hi32(w2, phys.contact.slip_sin);
-    phys.contact.slide[1] -= mul_hi32(w2, phys.contact.slip_cos);
+    contact.slip_cos = fx_cos(heading).q31();
+    contact.slip_sin = fx_sin(heading).q31();
+    int32_t w2 = contact.wheel_speed << 1;
+    contact.slide[0] += mul_hi32(w2, contact.slip_sin);
+    contact.slide[1] -= mul_hi32(w2, contact.slip_cos);
     wheel_friction(v);
-    wheel_set_speed(index, -phys.contact.wheel_speed);
+    wheel_set_speed(index, -contact.wheel_speed);
 }
 
 /* Integrate every point of the car.  orig 1000:48db */
@@ -456,14 +456,15 @@ void Car::update_points()
         CarVertex &v = verts[i];
         v.vel.z -= world.gravity;
 
-        int16_t ground = (int16_t)(ground_probe(v.pos.x.units(), v.pos.y.units()) + v.radius);
-        if ((int16_t)(ground - v.pos.z.units_signed()) >= 0) {
+        Ground g = ground_probe(v.pos.x.units(), v.pos.y.units());
+        contact.surface = g.surface;
+        if ((int16_t)((int16_t)(g.height + v.radius) - v.pos.z.units_signed()) >= 0) {
             /* below the ground: damp by surface, then collide */
-            int shift = surface_damp_shift[phys.ground_surface >> 4];
+            int shift = surface_damp_shift[g.surface >> 4];
             if (shift)
                 v.vel -= v.vel >> shift;
-            Angle a = fx_atan2(phys.ground_slope_x, 0x100);
-            Angle b = fx_atan2(phys.ground_slope_y, 0x100);
+            Angle a = fx_atan2(g.slope_x, 0x100);
+            Angle b = fx_atan2(g.slope_y, 0x100);
             set_contact_frame(fx_sin(a), fx_cos(a), fx_sin(b), fx_cos(b));
             ground_contact(v, i);
         }
@@ -471,22 +472,22 @@ void Car::update_points()
         /* invisible walls half a cell inside the map border */
         if ((uint16_t)(v.pos.x.units() - v.radius) < 0x80) {
             set_contact_frame({ INT16_MIN }, { 0 }, { 0 }, { 0x7f00 });
-            phys.ground_surface = 0;
+            contact.surface = 0;
             ground_contact(v, i);
         }
         if ((uint16_t)(v.pos.y.units() - v.radius) < 0x80) {
             set_contact_frame({ 0 }, { 0x7fff }, { INT16_MIN }, { 0 });
-            phys.ground_surface = 0;
+            contact.surface = 0;
             ground_contact(v, i);
         }
         if ((uint16_t)(v.pos.x.units() + v.radius) > 0xfe80) {
             set_contact_frame({ 0x7fff }, { 0 }, { 0 }, { 0x7fff });
-            phys.ground_surface = 0;
+            contact.surface = 0;
             ground_contact(v, i);
         }
         if ((uint16_t)(v.pos.y.units() + v.radius) > 0xfe80) {
             set_contact_frame({ 0 }, { 0x7fff }, { 0x7fff }, { 0 });
-            phys.ground_surface = 0;
+            contact.surface = 0;
             ground_contact(v, i);
         }
 
@@ -503,30 +504,35 @@ static int32_t hull_normal_component(int32_t a0, int32_t a1, int32_t b0, int32_t
     return (a0 >> 14) * (b0 >> 14) - (a1 >> 14) * (b1 >> 14);
 }
 
-static int hull_planes() { return phys.hull_plane_count; }
+/* The collision planes of a car (orig DS ea99..ec1a). */
+struct Hull {
+    int count;
+    Vec3 normal[16];                /* unnormalised */
+    Pos point[16];                  /* a point on each plane */
+};
 
 /* Build the collision planes of a car from the hull triangles: for each
  * triangle a point and an (unnormalised) normal.  orig 1000:5091 */
-void Car::build_hull()
+void Car::build_hull(Hull &h)
 {
     CarVertex *v = vertices();
-    phys.hull_plane_count = 0;
+    h.count = 0;
     for (int t = 0; t < (int)(sizeof hull_triangles / sizeof hull_triangles[0]); t++) {
         Pos p = v[hull_triangles[t][0]].pos;
         Vec3 pq = p - v[hull_triangles[t][1]].pos;
         Vec3 pr = p - v[hull_triangles[t][2]].pos;
-        int k = hull_planes();
+        int k = h.count;
         /* cross product of (p - q) and (p - r) */
-        phys.hull_normal[k] = { hull_normal_component(pq.y, pr.y, pr.z, pq.z),
+        h.normal[k] = { hull_normal_component(pq.y, pr.y, pr.z, pq.z),
                            -hull_normal_component(pr.z, pq.z, pq.x, pr.x),
                            hull_normal_component(pr.x, pq.x, pq.y, pr.y) };
-        phys.hull_point[k] = p;
-        phys.hull_plane_count++;
+        h.point[k] = p;
+        h.count++;
     }
 }
 
 /* Push the points of car b that are inside this car's hull.  orig 1000:51bd */
-void Car::push_points_of(Car &b)
+void Car::push_points_of(const Hull &h, Car &b)
 {
     CarVertex *v = b.vertices();
     uint16_t n = b.vertex_count();
@@ -535,8 +541,8 @@ void Car::push_points_of(Car &b)
         int best = 0;
         int32_t best_d = INT32_MIN;
         bool inside = true;
-        for (int k = 0; k < hull_planes(); k++) {
-            Vec3 rel = v->pos - phys.hull_point[k], nrm = phys.hull_normal[k];
+        for (int k = 0; k < h.count; k++) {
+            Vec3 rel = v->pos - h.point[k], nrm = h.normal[k];
             int32_t d = (rel.x >> 16) * nrm.x + (rel.y >> 16) * nrm.y + (rel.z >> 16) * nrm.z;
             if (d >= 0) {
                 inside = false;
@@ -548,7 +554,7 @@ void Car::push_points_of(Car &b)
             }
         }
         if (inside) {
-            Vec3 nrm = phys.hull_normal[best];
+            Vec3 nrm = h.normal[best];
             v->vel += nrm;
 
             /* The reaction goes to the point of this car with the smallest
@@ -581,10 +587,11 @@ void Car::push_points_of(Car &b)
 /* orig 1000:500b */
 static void cars_collide()
 {
-    phys.ground_surface = 0;
+    contact.surface = 0;
     for (int i = 0; i < world.num_cars; i++) {
         Car &a = car_get(i);
-        a.build_hull();
+        Hull hull;
+        a.build_hull(hull);
         for (int j = 0; j < world.num_cars; j++) {
             Car &b = car_get(j);
             if (&b == &a)
@@ -595,7 +602,7 @@ static void cars_collide()
             int16_t dz = (int16_t)(pa.z.units() - pb.z.units());
             if (dx > 0x200 || dx < -0x200 || dy > 0x200 || dy < -0x200 || dz > 0x200 || dz < -0x200)
                 continue;
-            a.push_points_of(b);
+            a.push_points_of(hull, b);
         }
     }
 }

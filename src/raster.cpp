@@ -6,7 +6,7 @@
  * attributes per vertex).  Drawing clips it against the four sides of the
  * clip rectangle, ping-ponging between poly_buf[0] and poly_buf[1], walks
  * its edges into the per-scanline tables render.span_x / render.span_a / render.span_b and then
- * fills every scanline between span_top and span_bottom.
+ * fills every scanline between the top and bottom it found (SpanRows).
  */
 #include <utility>
 #include "terep.hpp"
@@ -154,7 +154,12 @@ static uint16_t clip_polygon(int attrs)
 /* Record the x of an edge on every scanline it covers, into the left table
  * for downward edges and the right one for upward edges.  16.16 DDA; the
  * last row gets the accumulated value, not x1.  orig 1000:2c4b */
-static void scan_edge_x(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
+/* Scanlines covered by the polygon being drawn (orig DS dbc4, dbc6). */
+struct SpanRows {
+    int16_t top, bottom;
+};
+
+static void scan_edge_x(SpanRows &rows, int16_t x0, int16_t y0, int16_t x1, int16_t y1)
 {
     int side = 0;
     if (y0 > y1) {
@@ -162,8 +167,8 @@ static void scan_edge_x(int16_t x0, int16_t y0, int16_t x1, int16_t y1)
         std::swap(y0, y1);
         side = 1;
     }
-    if (y0 < render.span_top) render.span_top = y0;
-    if (y1 > render.span_bottom) render.span_bottom = y1;
+    if (y0 < rows.top) rows.top = y0;
+    if (y1 > rows.bottom) rows.bottom = y1;
 
     int16_t dy = (int16_t)(y1 - y0);
     if (!dy)
@@ -229,19 +234,18 @@ static void scan_edge_uv(int16_t y0, int16_t y1, uint16_t u0, uint16_t v0, uint1
     *rv = (int16_t)(v >> 16);
 }
 
-/* Walk the polygon outline into render.span_x.  Returns 0 when nothing is left
- * after clipping. */
-static bool scan_outline(int attrs)
+/* Walk the polygon outline into render.span_x.  Returns false when nothing
+ * is left after clipping. */
+static bool scan_outline(int attrs, SpanRows &rows)
 {
     uint16_t n = clip_polygon(attrs);
     if (n < 3)
         return false;
     const PolyVertex *v = render.poly_buf[0].v;
-    render.span_top = render.clip_bottom;
-    render.span_bottom = render.clip_top;
+    rows = { render.clip_bottom, render.clip_top };
     for (uint16_t i = 0; i + 1 < n; i++)
-        scan_edge_x(v[i].sx, v[i].sy, v[i + 1].sx, v[i + 1].sy);
-    scan_edge_x(v[n - 1].sx, v[n - 1].sy, v[0].sx, v[0].sy);
+        scan_edge_x(rows, v[i].sx, v[i].sy, v[i + 1].sx, v[i + 1].sy);
+    scan_edge_x(rows, v[n - 1].sx, v[n - 1].sy, v[0].sx, v[0].sy);
     return true;
 }
 
@@ -275,21 +279,21 @@ static uint32_t pixel_mask() { return render_scale > 1 ? 0xffffffffu : 0xffffu; 
  * Span fillers
  * ---------------------------------------------------------------------- */
 
-/* Flat polygon in poly_color.  A colour word >= 0xf0f0 is translucent:
+/* Flat polygon in color.  A colour word >= 0xf0f0 is translucent:
  * its high byte - 0xf0 picks a row of the shade table.  Otherwise the two
  * bytes of the word are written alternately (a dither pattern when they
  * differ).  orig 1000:2bec / 1000:2d61 */
-void draw_flat()
+void draw_flat(uint16_t color)
 {
-    if (!scan_outline(0))
+    SpanRows span;
+    if (!scan_outline(0, span))
         return;
-    int16_t rows = (int16_t)(render.span_bottom - render.span_top);
+    int16_t rows = (int16_t)(span.bottom - span.top);
     if (!rows)
         return;
     uint8_t *scr = screen();
     const uint32_t m = pixel_mask();
-    uint16_t color = render.poly_color;
-    for (int16_t y = render.span_top; rows >= 0; rows--, y++) {
+    for (int16_t y = span.top; rows >= 0; rows--, y++) {
         int16_t x0, w;
         uint32_t o = span_extent(y, &x0, &w);
         if (color >= 0xf0f0) {
@@ -306,7 +310,8 @@ void draw_flat()
 /* Gouraud-shaded polygon, attribute a = colour in 8.8.  orig 1000:30ee / 1000:31d1 */
 void draw_shaded()
 {
-    if (!scan_outline(1))
+    SpanRows span;
+    if (!scan_outline(1, span))
         return;
     const PolyVertex *v = render.poly_buf[0].v;
     uint16_t n = render.poly_buf[0].count;
@@ -315,12 +320,12 @@ void draw_shaded()
         scan_edge_attr(tab, (int16_t)v[i].a, v[i].sy, (int16_t)v[i + 1].a, v[i + 1].sy);
     scan_edge_attr(tab, (int16_t)v[n - 1].a, v[n - 1].sy, (int16_t)v[0].a, v[0].sy);
 
-    int16_t rows = (int16_t)(render.span_bottom - render.span_top);
+    int16_t rows = (int16_t)(span.bottom - span.top);
     if (!rows)
         return;
     uint8_t *scr = screen();
     const uint32_t m = pixel_mask();
-    for (int16_t y = render.span_top; rows >= 0; rows--, y++) {
+    for (int16_t y = span.top; rows >= 0; rows--, y++) {
         int16_t a0 = render.span_a[y].left;
         int16_t da = (int16_t)(render.span_a[y].right - a0);
         if ((int16_t)(render.span_x[y].right - render.span_x[y].left) < 0) {
@@ -343,7 +348,8 @@ void draw_shaded()
  * behind through the shade table.  orig 1000:36fe / 1000:3827 */
 void draw_textured(const uint8_t *tex)
 {
-    if (!scan_outline(2))
+    SpanRows span;
+    if (!scan_outline(2, span))
         return;
     const PolyVertex *v = render.poly_buf[0].v;
     uint16_t n = render.poly_buf[0].count;
@@ -351,12 +357,12 @@ void draw_textured(const uint8_t *tex)
         scan_edge_uv(v[i].sy, v[i + 1].sy, v[i].a, v[i].b, v[i + 1].a, v[i + 1].b);
     scan_edge_uv(v[n - 1].sy, v[0].sy, v[n - 1].a, v[n - 1].b, v[0].a, v[0].b);
 
-    int16_t rows = (int16_t)(render.span_bottom - render.span_top);
+    int16_t rows = (int16_t)(span.bottom - span.top);
     if (!rows)
         return;
     uint8_t *scr = screen();
     const uint32_t m = pixel_mask();
-    for (int16_t y = render.span_top; rows >= 0; rows--, y++) {
+    for (int16_t y = span.top; rows >= 0; rows--, y++) {
         int16_t u0 = render.span_a[y].left, du = (int16_t)(render.span_a[y].right - u0);
         int16_t v0 = render.span_b[y].left, dv = (int16_t)(render.span_b[y].right - v0);
         if ((int16_t)(render.span_x[y].right - render.span_x[y].left) < 0) {
