@@ -4,8 +4,8 @@
  *  - write-only leftovers and scratch variables of the original that the
  *    port keeps in locals instead (they never carry state between ticks).
  *
- * Shared by the test host, the C++ oracle and tools/asm_oracle/run.py
- * (which parses the ranges below), hence the plain .h name.
+ * Used by run.py, which parses the ranges below (it was shared with the
+ * old CRC tests of the C++ port, hence the C header).
  */
 #pragma once
 #include <cstdint>

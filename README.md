@@ -19,7 +19,7 @@ that corrupts the title) and a crash of the original that the port does not repr
 git submodule update --init   # Dear ImGui and Nuked-OPL3 (host/imgui, host/Nuked-OPL3), for terep2vibed
 make            # terep2-headless: test host, no dependencies
 make sdl        # terep2vibed: playable SDL2 + OpenGL 3.3 version (needs libsdl2-dev, OpenGL and the submodules)
-make test       # runs the recorded scenarios and compares them with the reference
+make test       # replays the Win16 recordings in tests/ and compares the frames
 make -j8 all sdl  # in parallel: each source is its own object in build/, rebuilt when its headers change
 make coverage  # which lines of src/ the tests run (clang/LLVM): summary, and build/cov/html
 make coverage REPLAY="rec/dir data/Map"  # the same for one recording only
@@ -167,12 +167,10 @@ host/
   imgui/        Dear ImGui (git submodule)
   Nuked-OPL3/   OPL3 emulator (git submodule, LGPL 2.1)
 host_test/      the test host (terep2-headless)
-  main.cpp      runs N frames with scripted keys and prints CRCs
-  car_image.cpp the cars written back into the data segment in the original's format, for comparing
-  dsmask.h      what the data segment CRC leaves out (shared with the oracles)
+  main.cpp      replays a recording of the Win16 port and compares the frames
 data/           the Asphalt map and data.bin (the original's data segment, only for the oracles)
-tests/          run_tests.sh and references (ref/*.txt = keys, *.crc)
-tools/          oracles used for verification (below), dataseg.hpp generator, script generator
+tests/          run_tests.sh and the Win16 recordings (one directory each: record.txt, frames)
+tools/          the asm oracle (below), dataseg.hpp generator, synthetic and face car makers
 ```
 
 ### C++ style
@@ -226,50 +224,34 @@ itself: the header holds the state (steering, throttle, wheels...), the points a
 read by offset and the model is a program whose counter is an offset in the segment. Here
 `car_read` (`src/car_file.cpp`) parses the file into a `Car` with `std::vector`s of points and
 springs and the model decoded (`model_decode`: one `ModelOp` per instruction, the program
-counter becomes an index into that list). The game keeps nothing else of the file. The test host
-goes the other way (`host_test/car_image.cpp`): it writes each `Car` back in the file format,
-taking the model's bytes and an unknown header word from the file again, into a copy of the
-segment where the original would have the cars (`car_ofs`), and computes the CRC over that copy,
-so the comparison with the original is still byte for byte. The title bug was fixed in `Car::jump`.
+counter becomes an index into that list). The game keeps nothing else of the file. The title bug
+was fixed in `Car::jump`.
 
 The initial contents of the segment, which the original read from `data.bin`, are written by
 `dataseg_init()` (`src/dataseg_init.cpp`): texts and file names as strings, the font read from
 `src/font.pbm` (embedded in the executable with `#embed`), the surface, key and hull tables as
 arrays, the sine and atan tables computed (the original's atan table was made with π typed as
 3.14169; one entry, a rounding tie, is set by hand). DOS leftovers that nothing reads (XMS messages, an old sound sequence) are still
-there, so the segment comes out byte for byte identical to the original and the tests keep
-comparing against the asm.
+there: the segment came out byte for byte identical to the original while the tests compared it
+with the asm (see Verification).
 
 ## Verification
 
-Two oracles, both in `tools/`:
+`make test` (`tests/run_tests.sh`) replays the recordings made with the Win16 port, one
+directory per recording in `tests/` (the map is the one of its `#selected path:` line, under
+`data/`), and compares the frames: every frame's hash and a few full frames.
 
-- **original asm** (`tools/asm_oracle`): `maincode.asm` itself assembled with nasm and run in a
-  16-bit x86 emulator (unicorn), with the DOS services emulated. It is the reference truth.
-  `sh tools/asm_oracle/build.sh ../terep2isolado out/` and then `python3 out/run.py`.
-- **previous_effort** (`tools/oracle`): the old mechanical C++ translation, with a Linux host.
-  It is ~1000x faster than the emulator and can swap subsystems for the new code
-  (`--new physics,render,init`), which made it possible to rewrite one part at a time.
-  `bash tools/build_oracle.sh build/`.
-
-All of them print, per frame, the CRC32 of the framebuffer and of the data segment (with
-`host_test/dsmask.h` masking only register garbage that the original leaves in scratch variables).
-Results:
-
-- a 600-frame scenario that goes through every key (`tools/cenario.py`): new =
-  previous_effort = asm;
-- 12 random scripts of 3000 frames (`tools/fuzz_script.py`): new = previous_effort in all of
-  them, with g++ and with clang++;
-- random scripts 4 and 7 (3000 frames each) against the asm: 7 is identical. 4 diverges from
-  frame 1591, where the original hits the title bug, which is fixed here (explained below).
-  Before the fix it matched the asm in the whole data segment.
-
-`make test` repeats the scenario and random script 1 and compares them with the recorded
-references. It also runs the scenario with car 1 given a synthetic model that uses every opcode
-of the bytecode (`tools/synth_model.py`, built from the map's own car file, so it is not stored
-in the repository); the demo's cars only use six of them. It also plays 300 frames on another map, frees everything and then
-runs the scenario again in the same process (`terep2-headless -p map:frames`), which has to give
-the same output as a fresh process.
+Until the data segment started being split, the tests compared a CRC of the frame buffer and of
+the whole data segment, per frame, with two oracles: the original asm (`tools/asm_oracle`,
+`maincode.asm` assembled with nasm and run in a 16-bit x86 emulator, unicorn, with the DOS
+services emulated: `sh tools/asm_oracle/build.sh ../terep2isolado out/` and then
+`python3 out/run.py`; `dsmask.h` there lists the scratch bytes it leaves out) and the old
+mechanical C++ translation (previous_effort), ~1000x faster, which could swap subsystems for the
+new code one at a time. A 600-frame scenario through every key matched both, 12 random scripts
+of 3000 frames matched previous_effort with g++ and clang++, and the random scripts run against
+the asm matched it except where the original hits the title bug, fixed here (below). That
+setup is in the git history (`tests/ref`, `host_test/car_image.cpp`, `tools/cenario.py`,
+`tools/fuzz_script.py`).
 
 Recordings made with the Win16 port are replayed with `terep2-headless -R recdir mapdir`
 (`-C` instead of `-R` only compares, writing nothing). `recdir/record.txt` has one call per line,

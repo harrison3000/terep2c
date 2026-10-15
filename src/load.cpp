@@ -180,8 +180,7 @@ static uint16_t &ds_word(size_t ofs)
 /* Cars are loaded until a carN.dat is missing, lined up along y = 0x7a00
  * every 256 units of x.  The name tables hold 5 entries; a sixth car would
  * take its name from the bytes after them.  car_ofs still records where
- * the original would have put each car in car_pool (back to back), which
- * the test host uses (host_test/car_image.cpp). */
+ * the original would have put each car in car_pool (back to back). */
 static void load_cars()
 {
     G->num_cars = 0;
@@ -214,9 +213,6 @@ int game_init()
     game_frame_reset();
     free(hires_screen);
     hires_screen = nullptr;
-    memset(span_x, 0, sizeof span_x);   /* zero, as the data segment's were */
-    memset(span_a, 0, sizeof span_a);
-    memset(span_b, 0, sizeof span_b);
 
     G->num_cars = -2;
     G->unk_ec50 = 0x78;

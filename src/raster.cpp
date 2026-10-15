@@ -18,7 +18,7 @@ uint8_t *hires_screen;
 /* Per-scanline tables, tall enough for every scale.  The original keeps
  * them in the data segment, where they are left unused (dataseg.def). 
  * TODO make these static again after the test overhaul */
-ScanEdge span_x[200 * MAX_RENDER_SCALE], span_a[200 * MAX_RENDER_SCALE], span_b[200 * MAX_RENDER_SCALE];
+static ScanEdge span_x[200 * MAX_RENDER_SCALE], span_a[200 * MAX_RENDER_SCALE], span_b[200 * MAX_RENDER_SCALE];
 
 /* Clear the frame buffer to colour 0xff.  orig 1000:2b98 */
 void clear_screen()

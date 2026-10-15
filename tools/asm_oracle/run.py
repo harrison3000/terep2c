@@ -128,7 +128,7 @@ def fnv(b):
     return h
 
 import zlib, re
-# same ranges as host_test/dsmask.h
+# the ranges in dsmask.h
 _h = open(os.environ.get('DSMASK', os.path.join(HERE, 'dsmask.h'))).read()
 DS_MASK = [(int(a, 16), int(b, 16)) for a, b in re.findall(r'\{ (0x[0-9a-f]+), (0x[0-9a-f]+) \}', _h)]
 for fr in range(frames):
