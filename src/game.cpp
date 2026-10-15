@@ -25,6 +25,9 @@ bool extra_option_enable(const char *name)
     return found;
 }
 
+const char title_text[] = "-DEFORMERS-  ATOMIC VEHICLE SIMULATION SYSTEM (C)NAGYMATHE DENES 1996-1997";
+const char subtitle_text[] = "WORK-IN-PROGRESS DEMO VERSION";
+
 /* Line added by the Win16 port, drawn in a cycling colour. */
 static const char port_banner[] = "GAMBIARRA FOREVER!";
 static uint8_t banner_color;
@@ -84,8 +87,8 @@ int game_frame()
     }
 
     set_viewport(0, 0x50, 0xc7);
-    draw_text(G->title_text, 10, 10, 15);
-    draw_text(G->subtitle_text, 100, 190, 15);
+    draw_text(title_text, 10, 10, 15);
+    draw_text(subtitle_text, 100, 190, 15);
     if (!extra_options.hide_banner)
         draw_text(port_banner, 5, 190, (uint8_t)(banner_color >> 2));
     banner_color++;

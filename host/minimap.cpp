@@ -33,7 +33,7 @@ Minimap::Minimap()
 void Minimap::text(ImDrawList *dl, const char *s, float x, float y, float px, ImU32 c) const
 {
     for (; *s; s++, x += px) {
-        const uint8_t *col = &G->font_glyphs[G->font_offset[(uint8_t)*s & 0x7f]];
+        const uint8_t *col = font_glyph((uint8_t)*s);
         for (; *col; col++, x += px)
             for (int row = 0; row < 5; row++)
                 if (*col >> row & 1)

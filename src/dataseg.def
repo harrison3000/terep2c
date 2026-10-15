@@ -4,8 +4,6 @@
 ; the original (scratch variables kept in locals here, the cars' pool, the
 ; scanline tables, leftovers of the DOS version) is in the git history of this file.
 
-0x0000 char     title_text[0x4b]          ; "-DEFORMERS- ATOMIC VEHICLE SIMULATION SYSTEM ..."
-0x004b char     subtitle_text[0x1f]       ; "WORK-IN-PROGRESS DEMO VERSION"
 0x006a int32_t  gravity                   ; added to every vertex's vz each tick ([ and ] change it)
 0x006e uint8_t  sim_running               ; set to 1 once loading succeeded
 0x007d uint8_t  split_screen              ; F9
@@ -23,10 +21,6 @@
 0x0120 int16_t  near_clip                 ; points closer than this are not projected
 0x0126 ProjVertex car_proj[100]           ; car vertices transformed to camera space
 0x050e uint8_t  car_uv_table[0xc8]        ; texture coordinates used by model opcode 7
-0x05de int16_t  wheel_sector_limits[8]    ; picks one of 9 wheel sprites by view angle
-0x05ef int16_t  view_reach                ; frustum shape for the visible-terrain hexagon
-0x05f1 int16_t  view_side_a
-0x05f3 int16_t  view_side_b
 0x05f5 int16_t  fog_start                 ; terrain farther than this is flat-shaded (F10 toggles)
 0x05f7 int16_t  yaw_sin7                  ; sin(yaw) >> 7
 0x05f9 int16_t  yaw_cos7                  ; cos(yaw) >> 7
@@ -34,13 +28,6 @@
 0x05ff ProjVertex terrain_rows[2][256]    ; two rows of projected terrain grid points (ping-pong)
 0x19ff uint16_t terrain_row_cur           ; byte offset (0 or 0xa00) of the row being filled
 0x1a01 uint16_t terrain_row_prev
-0x1a03 char     fname_map[8]              ; "map.pcx"      heightmap
-0x1a0b char     fname_col[8]              ; "col.pcx"      terrain colour + palette
-0x1a13 char     fname_textures[13]        ; "textures.pcx" generic textures (smoke, default car skin)
-0x1a20 char     fname_maptex[11]          ; "maptex.pcx"   near-terrain textures
-0x1a2b char     fname_fog[8]              ; "fog.dat"      distance fog lookup
-0x1a33 char     fname_smoke[10]           ; "smoke.dat"    translucency lookup
-0x1a3d char     fname_cfg[8]              ; "sim.cfg"      optional spring limits
 0x1a45 uint16_t seg_heightmap             ; 256x256 heights (GS in the original)
 0x1a47 uint16_t seg_colormap              ; 256x256 colour/surface (FS)
 0x1a49 uint16_t seg_textures
@@ -50,16 +37,7 @@
 0x2e51 uint8_t  shade_table[16][256]      ; [level][colour] -> colour (translucency)
 0x3e51 uint16_t particle_bytes            ; number of live particles * sizeof(Particle)
 0x3e53 Particle particles[200]
-0x5a53 uint16_t smoke_sprite[16]          ; DS offsets of the smoke quads, by particle kind >> 4
-0x5a73 SpriteQuad smoke_quad[4]
-0x5ad9 uint8_t  car_keys[5][6]            ; accel, brake, left, right, handbrake, spare
-0x5af7 uint16_t car_dat_name[5]           ; DS offsets of "car1.dat".."car5.dat"
-0x5b01 char     car_dat_names[45]
-0x5b2e uint16_t car_pcx_name[5]
-0x5b38 char     car_pcx_names[45]
 0x5bba int16_t  num_cars
-0xd10c int16_t  sin_table[1025]           ; sin of 0..90 deg, Q15
-0xd90e uint16_t atan_table[257]           ; atan(i/256), binary degrees
 0xdb10 uint16_t seg_screen                ; 320x200 8-bit framebuffer
 0xdb12 uint16_t poly_color                ; colour for flat polygons (two copies of the byte)
 0xdb14 PolyBuf  poly_buf[2]               ; [0] polygon being drawn, [1] scratch for clipping
@@ -86,18 +64,9 @@
 0xea24 int16_t  ground_slope_x
 0xea26 int16_t  ground_slope_y
 0xea28 uint8_t  ground_surface            ; colour-map byte under the last tested point
-0xea29 uint16_t surface_grip[16]          ; per surface type (colour >> 4)
-0xea49 uint8_t  surface_damp_shift[16]
-0xea59 int32_t  surface_max_load[16]
 0xea99 uint16_t hull_plane_bytes
 0xea9b Vec3     hull_normal[16]           ; collision planes of the car being tested: normal
 0xeb5b Pos      hull_point[16]            ; and a point on each
-0xec1b uint16_t hull_tri_count
-0xec1d uint16_t hull_tri[7][3]            ; car vertices forming the collision hull
-0xecb8 uint8_t  sfx_engine_patch[0x21]
-0xecd9 uint8_t  sfx_hit_patch[0x3e]
-0xed17 uint16_t font_offset[128]          ; per character, relative to font_glyphs
-0xee17 uint8_t  font_glyphs[0x169]        ; columns of each glyph (bit 0 = top row), 0 ends a glyph
 0xef80 uint16_t pcx_width
 0xef82 uint16_t pcx_height
 0xef88 PcxHeader pcx_header

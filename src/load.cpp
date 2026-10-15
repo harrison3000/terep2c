@@ -91,12 +91,12 @@ static void read_table(const char *name, void *dst, size_t size)
  * goes on with whatever is in memory).  orig 1000:24c0 */
 static void load_map()
 {
-    if (!pcx_load(G->fname_map, heightmap()))
+    if (!pcx_load(fname_map, heightmap()))
         return;
-    if (!pcx_load(G->fname_maptex, seg_ptr(G->seg_maptex)))
+    if (!pcx_load(fname_maptex, seg_ptr(G->seg_maptex)))
         return;
 
-    FILE *f = data_fopen(G->fname_col);
+    FILE *f = data_fopen(fname_col);
     if (!f)
         return;
     if (!pcx_read_header(f) || fseek(f, -0x300, SEEK_END) != 0) {
@@ -108,8 +108,8 @@ static void load_map()
     pcx_decode(f, colormap());
     fclose(f);
 
-    read_table(G->fname_fog, G->fog_table, sizeof G->fog_table);
-    read_table(G->fname_smoke, G->shade_table, sizeof G->shade_table);
+    read_table(fname_fog, G->fog_table, sizeof G->fog_table);
+    read_table(fname_smoke, G->shade_table, sizeof G->shade_table);
 }
 
 /* ------------------------------------------------------------------------
@@ -172,21 +172,19 @@ static void load_car_skin(Car &car, const char *name)
 }
 
 /* A word of the data segment at a computed offset. */
-static uint16_t &ds_word(size_t ofs)
-{
-    return *reinterpret_cast<uint16_t *>(ds_ptr((uint16_t)ofs));
-}
+static const char *const car_dat_names[MAX_CARS] = { "car1.dat", "car2.dat", "car3.dat", "car4.dat", "car5.dat" };
+static const char *const car_pcx_names[MAX_CARS] = { "car1.pcx", "car2.pcx", "car3.pcx", "car4.pcx", "car5.pcx" };
+const char *car_dat_name(int i) { return car_dat_names[i]; }
+const char *car_pcx_name(int i) { return car_pcx_names[i]; }
 
 /* Cars are loaded until a carN.dat is missing, lined up along y = 0x7a00
- * every 256 units of x.  The name tables hold 5 entries; a sixth car would
- * take its name from the bytes after them. */
+ * every 256 units of x, at most 5 (the original's name tables hold 5; a
+ * sixth car took its name from the bytes after them). */
 static void load_cars()
 {
     G->num_cars = 0;
-    for (int i = 0; i < (int)(sizeof cars / sizeof cars[0]); i++) {
-        /* read through ds_ptr: i can run past the 5-entry tables */
-        const char *dat = (const char *)ds_ptr(ds_word(offsetof(DataSeg, car_dat_name) + 2 * i));
-        const char *pcx = (const char *)ds_ptr(ds_word(offsetof(DataSeg, car_pcx_name) + 2 * i));
+    for (int i = 0; i < MAX_CARS; i++) {
+        const char *dat = car_dat_name(i), *pcx = car_pcx_name(i);
         Car &car = cars[i];
         uint16_t size = load_car(car, dat, (uint16_t)(0x8000 - i * 256), 0x7a00);
         if (!size || car.points.empty())
@@ -221,7 +219,7 @@ int game_init()
     G->screen_cy = 80;
     G->clip_bottom = 199;
 
-    FILE *cfg = data_fopen(G->fname_cfg);   /* optional spring limits */
+    FILE *cfg = data_fopen(fname_cfg);   /* optional spring limits */
     if (cfg) {
         fread(&G->spring_break_stretch, 1, 2, cfg);
         fread(&G->spring_break_squash, 1, 2, cfg);
@@ -232,7 +230,7 @@ int game_init()
         seg_alloc(0x1000, &G->seg_textures) || seg_alloc(0x1000, &G->seg_maptex))
         return 1;
     load_map();
-    pcx_load(G->fname_textures, seg_ptr(G->seg_textures));      /* orig 1000:255c */
+    pcx_load(fname_textures, seg_ptr(G->seg_textures));      /* orig 1000:255c */
     load_cars();
 
     if (seg_alloc(0xfa0, &G->seg_screen))

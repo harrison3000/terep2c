@@ -11,8 +11,29 @@
  * Depending on the view direction the "rows" are map rows (y) or map
  * columns (x), walked upwards or downwards: four traversal orders.
  */
+#include <array>
 #include <utility>
 #include "terep.hpp"
+
+/* Frustum shape for the visible-terrain hexagon, in map cells. */
+constexpr int16_t VIEW_REACH = 0x21, VIEW_SIDE_A = 0x19, VIEW_SIDE_B = 0x14;
+
+/* smoke: 11x11-texel squares stacked down column 243 of textures.pcx */
+static const std::array<SpriteQuad, 4> smoke_quads = [] {
+    std::array<SpriteQuad, 4> quads;
+    for (int k = 0; k < 4; k++) {
+        SpriteQuad &q = quads[k];
+        q.size = 0x0a00;
+        uint32_t v0 = (uint32_t)(0x1000 * k + 0x80) << 16, v1 = v0 + (0xb00u << 16);
+        q.uv[0] = v0 | 0xf380;
+        q.uv[1] = v0 | 0xfe80;
+        q.uv[2] = v1 | 0xfe80;
+        q.uv[3] = v1 | 0xf380;
+    }
+    return quads;
+}();
+/* Which smoke quad each particle kind (>> 4) uses. */
+const uint8_t smoke_quad_of_kind[16] = { 0, 0, 1, 2, 0, 0, 1, 3, 2, 0, 0, 0, 3, 3, 0, 0 };
 
 bool poly_hidden;
 
@@ -164,12 +185,12 @@ static void compute_visible_area(bool swap_xy)
     p[1].x = (int16_t)(ex - s); p[1].y = (int16_t)(ey + c);
     p[2].x = (int16_t)(ex + c); p[2].y = (int16_t)(ey + s);
     /* and three far away, in the view direction */
-    int16_t ca = (int16_t)(c7 * G->view_side_a), sb = (int16_t)(s7 * G->view_side_b);
-    int16_t cb = (int16_t)(c7 * G->view_side_b), sa = (int16_t)(s7 * G->view_side_a);
+    int16_t ca = (int16_t)(c7 * VIEW_SIDE_A), sb = (int16_t)(s7 * VIEW_SIDE_B);
+    int16_t cb = (int16_t)(c7 * VIEW_SIDE_B), sa = (int16_t)(s7 * VIEW_SIDE_A);
     p[3].x = (int16_t)(((int16_t)(cb + sa) >> 8) + ex);
     p[3].y = (int16_t)(((int16_t)(sb - ca) >> 8) + ey);
-    p[4].x = (int16_t)(ex + ((int16_t)(G->view_reach * s7) >> 8));
-    p[4].y = (int16_t)(ey - ((int16_t)(G->view_reach * c7) >> 8));
+    p[4].x = (int16_t)(ex + ((int16_t)(VIEW_REACH * s7) >> 8));
+    p[4].y = (int16_t)(ey - ((int16_t)(VIEW_REACH * c7) >> 8));
     p[5].x = (int16_t)(((int16_t)(sa - cb) >> 8) + ex);
     p[5].y = (int16_t)(((int16_t)(-sb - ca) >> 8) + ey);
     G->vis_buf[0].count = 6;
@@ -447,7 +468,7 @@ void draw_particles()
                       : view_transform_units(p.pos.x.units(), p.pos.y.units(), p.pos.z.units(), &v);
         if (!in_front)
             continue;
-        const SpriteQuad &quad = *reinterpret_cast<const SpriteQuad *>(ds_ptr(G->smoke_sprite[(uint8_t)p.kind >> 4]));
+        const SpriteQuad &quad = smoke_quads[smoke_quad_of_kind[(uint8_t)p.kind >> 4]];
         draw_sprite(v.sx, v.sy, v.y, quad, tex);
     }
 }

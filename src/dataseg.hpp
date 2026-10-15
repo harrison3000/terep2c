@@ -2,8 +2,7 @@
 #pragma once
 
 struct PACKED DataSeg {
-    char title_text[75];                     /* 0000: "-DEFORMERS- ATOMIC VEHICLE SIMULATION SYSTEM ..." */
-    char subtitle_text[31];                  /* 004b: "WORK-IN-PROGRESS DEMO VERSION" */
+    uint8_t _pad_0000[0x6a];
     int32_t gravity;                         /* 006a: added to every vertex's vz each tick ([ and ] change it) */
     uint8_t sim_running;                     /* 006e: set to 1 once loading succeeded */
     uint8_t _pad_006f[0xe];
@@ -26,12 +25,7 @@ struct PACKED DataSeg {
     uint8_t _pad_0122[0x4];
     ProjVertex car_proj[100];                /* 0126: car vertices transformed to camera space */
     uint8_t car_uv_table[200];               /* 050e: texture coordinates used by model opcode 7 */
-    uint8_t _pad_05d6[0x8];
-    int16_t wheel_sector_limits[8];          /* 05de: picks one of 9 wheel sprites by view angle */
-    uint8_t _pad_05ee[0x1];
-    int16_t view_reach;                      /* 05ef: frustum shape for the visible-terrain hexagon */
-    int16_t view_side_a;                     /* 05f1 */
-    int16_t view_side_b;                     /* 05f3 */
+    uint8_t _pad_05d6[0x1f];
     int16_t fog_start;                       /* 05f5: terrain farther than this is flat-shaded (F10 toggles) */
     int16_t yaw_sin7;                        /* 05f7: sin(yaw) >> 7 */
     int16_t yaw_cos7;                        /* 05f9: cos(yaw) >> 7 */
@@ -40,13 +34,7 @@ struct PACKED DataSeg {
     ProjVertex terrain_rows[2][256];         /* 05ff: two rows of projected terrain grid points (ping-pong) */
     uint16_t terrain_row_cur;                /* 19ff: byte offset (0 or 0xa00) of the row being filled */
     uint16_t terrain_row_prev;               /* 1a01 */
-    char fname_map[8];                       /* 1a03: "map.pcx"      heightmap */
-    char fname_col[8];                       /* 1a0b: "col.pcx"      terrain colour + palette */
-    char fname_textures[13];                 /* 1a13: "textures.pcx" generic textures (smoke, default car skin) */
-    char fname_maptex[11];                   /* 1a20: "maptex.pcx"   near-terrain textures */
-    char fname_fog[8];                       /* 1a2b: "fog.dat"      distance fog lookup */
-    char fname_smoke[10];                    /* 1a33: "smoke.dat"    translucency lookup */
-    char fname_cfg[8];                       /* 1a3d: "sim.cfg"      optional spring limits */
+    uint8_t _pad_1a03[0x42];
     uint16_t seg_heightmap;                  /* 1a45: 256x256 heights (GS in the original) */
     uint16_t seg_colormap;                   /* 1a47: 256x256 colour/surface (FS) */
     uint16_t seg_textures;                   /* 1a49 */
@@ -57,20 +45,9 @@ struct PACKED DataSeg {
     uint8_t shade_table[16][256];            /* 2e51: [level][colour] -> colour (translucency) */
     uint16_t particle_bytes;                 /* 3e51: number of live particles * sizeof(Particle) */
     Particle particles[200];                 /* 3e53 */
-    uint8_t _pad_5433[0x620];
-    uint16_t smoke_sprite[16];               /* 5a53: DS offsets of the smoke quads, by particle kind >> 4 */
-    SpriteQuad smoke_quad[4];                /* 5a73 */
-    uint8_t _pad_5abb[0x1e];
-    uint8_t car_keys[5][6];                  /* 5ad9: accel, brake, left, right, handbrake, spare */
-    uint16_t car_dat_name[5];                /* 5af7: DS offsets of "car1.dat".."car5.dat" */
-    char car_dat_names[45];                  /* 5b01 */
-    uint16_t car_pcx_name[5];                /* 5b2e */
-    char car_pcx_names[45];                  /* 5b38 */
-    uint8_t _pad_5b65[0x55];
+    uint8_t _pad_5433[0x787];
     int16_t num_cars;                        /* 5bba */
-    uint8_t _pad_5bbc[0x7550];
-    int16_t sin_table[1025];                 /* d10c: sin of 0..90 deg, Q15 */
-    uint16_t atan_table[257];                /* d90e: atan(i/256), binary degrees */
+    uint8_t _pad_5bbc[0x7f54];
     uint16_t seg_screen;                     /* db10: 320x200 8-bit framebuffer */
     uint16_t poly_color;                     /* db12: colour for flat polygons (two copies of the byte) */
     PolyBuf poly_buf[2];                     /* db14: [0] polygon being drawn, [1] scratch for clipping */
@@ -101,19 +78,11 @@ struct PACKED DataSeg {
     int16_t ground_slope_x;                  /* ea24 */
     int16_t ground_slope_y;                  /* ea26 */
     uint8_t ground_surface;                  /* ea28: colour-map byte under the last tested point */
-    uint16_t surface_grip[16];               /* ea29: per surface type (colour >> 4) */
-    uint8_t surface_damp_shift[16];          /* ea49 */
-    int32_t surface_max_load[16];            /* ea59 */
+    uint8_t _pad_ea29[0x70];
     uint16_t hull_plane_bytes;               /* ea99 */
     Vec3 hull_normal[16];                    /* ea9b: collision planes of the car being tested: normal */
     Pos hull_point[16];                      /* eb5b: and a point on each */
-    uint16_t hull_tri_count;                 /* ec1b */
-    uint16_t hull_tri[7][3];                 /* ec1d: car vertices forming the collision hull */
-    uint8_t _pad_ec47[0x71];
-    uint8_t sfx_engine_patch[33];            /* ecb8 */
-    uint8_t sfx_hit_patch[62];               /* ecd9 */
-    uint16_t font_offset[128];               /* ed17: per character, relative to font_glyphs */
-    uint8_t font_glyphs[361];                /* ee17: columns of each glyph (bit 0 = top row), 0 ends a glyph */
+    uint8_t _pad_ec1b[0x365];
     uint16_t pcx_width;                      /* ef80 */
     uint16_t pcx_height;                     /* ef82 */
     uint8_t _pad_ef84[0x4];
@@ -123,8 +92,6 @@ struct PACKED DataSeg {
 };
 
 static_assert(sizeof(DataSeg) == 0x10000, "DataSeg must be exactly 64K");
-static_assert(offsetof(DataSeg, title_text) == 0x0000, "title_text");
-static_assert(offsetof(DataSeg, subtitle_text) == 0x004b, "subtitle_text");
 static_assert(offsetof(DataSeg, gravity) == 0x006a, "gravity");
 static_assert(offsetof(DataSeg, sim_running) == 0x006e, "sim_running");
 static_assert(offsetof(DataSeg, split_screen) == 0x007d, "split_screen");
@@ -142,10 +109,6 @@ static_assert(offsetof(DataSeg, chase_distance) == 0x011e, "chase_distance");
 static_assert(offsetof(DataSeg, near_clip) == 0x0120, "near_clip");
 static_assert(offsetof(DataSeg, car_proj) == 0x0126, "car_proj");
 static_assert(offsetof(DataSeg, car_uv_table) == 0x050e, "car_uv_table");
-static_assert(offsetof(DataSeg, wheel_sector_limits) == 0x05de, "wheel_sector_limits");
-static_assert(offsetof(DataSeg, view_reach) == 0x05ef, "view_reach");
-static_assert(offsetof(DataSeg, view_side_a) == 0x05f1, "view_side_a");
-static_assert(offsetof(DataSeg, view_side_b) == 0x05f3, "view_side_b");
 static_assert(offsetof(DataSeg, fog_start) == 0x05f5, "fog_start");
 static_assert(offsetof(DataSeg, yaw_sin7) == 0x05f7, "yaw_sin7");
 static_assert(offsetof(DataSeg, yaw_cos7) == 0x05f9, "yaw_cos7");
@@ -153,13 +116,6 @@ static_assert(offsetof(DataSeg, terrain_swap_xy) == 0x05fb, "terrain_swap_xy");
 static_assert(offsetof(DataSeg, terrain_rows) == 0x05ff, "terrain_rows");
 static_assert(offsetof(DataSeg, terrain_row_cur) == 0x19ff, "terrain_row_cur");
 static_assert(offsetof(DataSeg, terrain_row_prev) == 0x1a01, "terrain_row_prev");
-static_assert(offsetof(DataSeg, fname_map) == 0x1a03, "fname_map");
-static_assert(offsetof(DataSeg, fname_col) == 0x1a0b, "fname_col");
-static_assert(offsetof(DataSeg, fname_textures) == 0x1a13, "fname_textures");
-static_assert(offsetof(DataSeg, fname_maptex) == 0x1a20, "fname_maptex");
-static_assert(offsetof(DataSeg, fname_fog) == 0x1a2b, "fname_fog");
-static_assert(offsetof(DataSeg, fname_smoke) == 0x1a33, "fname_smoke");
-static_assert(offsetof(DataSeg, fname_cfg) == 0x1a3d, "fname_cfg");
 static_assert(offsetof(DataSeg, seg_heightmap) == 0x1a45, "seg_heightmap");
 static_assert(offsetof(DataSeg, seg_colormap) == 0x1a47, "seg_colormap");
 static_assert(offsetof(DataSeg, seg_textures) == 0x1a49, "seg_textures");
@@ -169,16 +125,7 @@ static_assert(offsetof(DataSeg, fog_table) == 0x1d51, "fog_table");
 static_assert(offsetof(DataSeg, shade_table) == 0x2e51, "shade_table");
 static_assert(offsetof(DataSeg, particle_bytes) == 0x3e51, "particle_bytes");
 static_assert(offsetof(DataSeg, particles) == 0x3e53, "particles");
-static_assert(offsetof(DataSeg, smoke_sprite) == 0x5a53, "smoke_sprite");
-static_assert(offsetof(DataSeg, smoke_quad) == 0x5a73, "smoke_quad");
-static_assert(offsetof(DataSeg, car_keys) == 0x5ad9, "car_keys");
-static_assert(offsetof(DataSeg, car_dat_name) == 0x5af7, "car_dat_name");
-static_assert(offsetof(DataSeg, car_dat_names) == 0x5b01, "car_dat_names");
-static_assert(offsetof(DataSeg, car_pcx_name) == 0x5b2e, "car_pcx_name");
-static_assert(offsetof(DataSeg, car_pcx_names) == 0x5b38, "car_pcx_names");
 static_assert(offsetof(DataSeg, num_cars) == 0x5bba, "num_cars");
-static_assert(offsetof(DataSeg, sin_table) == 0xd10c, "sin_table");
-static_assert(offsetof(DataSeg, atan_table) == 0xd90e, "atan_table");
 static_assert(offsetof(DataSeg, seg_screen) == 0xdb10, "seg_screen");
 static_assert(offsetof(DataSeg, poly_color) == 0xdb12, "poly_color");
 static_assert(offsetof(DataSeg, poly_buf) == 0xdb14, "poly_buf");
@@ -205,18 +152,9 @@ static_assert(offsetof(DataSeg, spring_break_squash) == 0xe9e4, "spring_break_sq
 static_assert(offsetof(DataSeg, ground_slope_x) == 0xea24, "ground_slope_x");
 static_assert(offsetof(DataSeg, ground_slope_y) == 0xea26, "ground_slope_y");
 static_assert(offsetof(DataSeg, ground_surface) == 0xea28, "ground_surface");
-static_assert(offsetof(DataSeg, surface_grip) == 0xea29, "surface_grip");
-static_assert(offsetof(DataSeg, surface_damp_shift) == 0xea49, "surface_damp_shift");
-static_assert(offsetof(DataSeg, surface_max_load) == 0xea59, "surface_max_load");
 static_assert(offsetof(DataSeg, hull_plane_bytes) == 0xea99, "hull_plane_bytes");
 static_assert(offsetof(DataSeg, hull_normal) == 0xea9b, "hull_normal");
 static_assert(offsetof(DataSeg, hull_point) == 0xeb5b, "hull_point");
-static_assert(offsetof(DataSeg, hull_tri_count) == 0xec1b, "hull_tri_count");
-static_assert(offsetof(DataSeg, hull_tri) == 0xec1d, "hull_tri");
-static_assert(offsetof(DataSeg, sfx_engine_patch) == 0xecb8, "sfx_engine_patch");
-static_assert(offsetof(DataSeg, sfx_hit_patch) == 0xecd9, "sfx_hit_patch");
-static_assert(offsetof(DataSeg, font_offset) == 0xed17, "font_offset");
-static_assert(offsetof(DataSeg, font_glyphs) == 0xee17, "font_glyphs");
 static_assert(offsetof(DataSeg, pcx_width) == 0xef80, "pcx_width");
 static_assert(offsetof(DataSeg, pcx_height) == 0xef82, "pcx_height");
 static_assert(offsetof(DataSeg, pcx_header) == 0xef88, "pcx_header");

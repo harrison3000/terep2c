@@ -278,7 +278,8 @@ int      seg_alloc(uint16_t paragraphs, uint16_t *handle);
 inline uint8_t *ds_ptr(uint16_t ofs) { return reinterpret_cast<uint8_t *>(G) + ofs; }
 inline uint16_t ds_ofs(const void *p) { return (uint16_t)(static_cast<const uint8_t *>(p) - reinterpret_cast<const uint8_t *>(G)); }
 
-extern Car cars[10];                /* G->num_cars of them are loaded */
+constexpr int MAX_CARS = 5;
+extern Car cars[MAX_CARS];          /* G->num_cars of them are loaded */
 inline Car &car_get(int i) { return cars[i]; }
 
 /* Map layers.  Indexing with a uint16_t (x | y << 8) wraps around exactly
@@ -365,6 +366,7 @@ void     draw_textured(const uint8_t *tex);     /* tex: the original's FS segmen
 extern bool poly_hidden;                /* result of the last facing test */
 bool     view_transform(int16_t x, int16_t y, int16_t z, ProjVertex *out);
 bool     view_transform_fine(Vec3 d, ProjVertex *out);  /* d: 16.16 map units from the eye */
+extern const uint8_t smoke_quad_of_kind[16];   /* smoke quad (0..3) of each particle kind >> 4 */
 void     draw_sprite(int16_t sx, int16_t sy, int16_t depth, const SpriteQuad &q, const uint8_t *tex);
 void     draw_terrain();
 void     draw_particles();
@@ -381,14 +383,25 @@ void     dataseg_init();                /* fill *G with the original's initial c
 
 /* text.cpp */
 void     draw_text(const char *s, int16_t x, int16_t y, uint8_t color);
+const uint8_t *font_glyph(uint8_t c);   /* columns (bit 0 = top row), ended by 0 */
 
 /* car_file.cpp */
 uint16_t car_read(Car &car, FILE *f);
 
-/* load.cpp */
+/* load.cpp: the map's files */
+inline constexpr char fname_map[] = "map.pcx";              /* heightmap */
+inline constexpr char fname_col[] = "col.pcx";              /* terrain colour + palette */
+inline constexpr char fname_textures[] = "textures.pcx";    /* generic textures (smoke, default car skin) */
+inline constexpr char fname_maptex[] = "maptex.pcx";        /* near-terrain textures */
+inline constexpr char fname_fog[] = "fog.dat";              /* distance fog lookup */
+inline constexpr char fname_smoke[] = "smoke.dat";          /* translucency lookup */
+inline constexpr char fname_cfg[] = "sim.cfg";              /* optional spring limits */
+const char *car_dat_name(int i);        /* "car1.dat".."car5.dat" */
+const char *car_pcx_name(int i);
 FILE    *data_fopen(const char *name);  /* provided by the host: open a track file for reading */
 
 /* game.cpp */
+extern const char title_text[], subtitle_text[];
 void     game_frame_reset();
 int      game_init();                   /* also to start again (new track): the host makes a new G first */
 int      game_frame();

@@ -13,6 +13,9 @@
 #include <map>
 #include "terep.hpp"
 
+/* cos of the borders between the nine wheel sprites (22.5 deg apart), Q14 */
+static const int16_t wheel_sector_limits[8] = { -16069, -13623, -9102, -3196, 3196, 9102, 13623, 16069 };
+
 static void transform_point(Pos p, ProjVertex *out)
 {
     view_transform_fine(p - G->eye, out);
@@ -286,7 +289,7 @@ static void draw_wheel(const ModelOp &o, const uint8_t *tex)
 
     int view = 0;
     for (int i = 0; i < 8; i++) {
-        if (cosine < G->wheel_sector_limits[i]) {
+        if (cosine < wheel_sector_limits[i]) {
             view = 8 - i;
             break;
         }

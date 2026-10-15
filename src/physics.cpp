@@ -11,6 +11,28 @@
 #include <math.h>
 #include "terep.hpp"
 
+/* Keys of each car: accelerate, brake, left, right, handbrake, unused. */
+static const uint8_t car_keys[5][6] = {
+    { 0x48, 0x50, 0x4b, 0x4d, 0x4c, 0x52 },     /* arrows, keypad 5 (keypad 0) */
+    { 0x11, 0x2c, 0x1e, 0x20, 0x1f, 0x2d },     /* W Z A D S (X) */
+    { 0x17, 0x32, 0x24, 0x26, 0x25, 0x27 },     /* I M J L K (;) */
+    { 0x14, 0x2f, 0x21, 0x23, 0x22, 0x30 },     /* T V F H G (B) */
+    { 0x47, 0x49, 0x4f, 0x51, 0x53, 0x55 },     /* keypad 7 9 1 3 . */
+};
+
+/* Per surface type (colour-map byte >> 4). */
+static const uint16_t surface_grip[16] = { 16, 25, 20, 40, 30, 25, 16, 20, 40, 25, 25, 25, 16, 25, 16, 16 };
+static const uint8_t surface_damp_shift[16] = { 12, 9, 10, 10, 10, 10, 8, 10, 10, 10, 10, 10, 8, 6, 10, 10 };
+static const int32_t surface_max_load[16] = {
+    0x30000, 0x18000, 0x20000, 0xc000, 0x20000, 0x20000, 0x20000, 0x20000,
+    0x20000, 0x20000, 0x20000, 0x20000, 0x10000, 0x10000, 0x10000, 0x10000,
+};
+
+/* Triangles of car vertices that form the collision hull. */
+static const uint16_t hull_triangles[7][3] = {
+    { 4, 5, 9 }, { 7, 6, 24 }, { 6, 9, 5 }, { 8, 7, 25 }, { 0, 2, 3 }, { 0, 1, 2 }, { 15, 14, 13 },
+};
+
 int broke_some_ice = 0;
 
 /* ------------------------------------------------------------------------
@@ -310,10 +332,10 @@ static bool contact_grips(int32_t *div)
     int32_t b = contact.slide[1] < 0 ? -contact.slide[1] : contact.slide[1];
     int32_t slide = a + b;
     unsigned surf = G->ground_surface >> 4;
-    int32_t grip = G->surface_grip[surf];
+    int32_t grip = surface_grip[surf];
     int32_t load = -contact.penetration;
-    if (load >= G->surface_max_load[surf])
-        load = G->surface_max_load[surf];
+    if (load >= surface_max_load[surf])
+        load = surface_max_load[surf];
     int32_t limit = load / grip;
     *div = grip >> 1;
     return limit > (slide >> 6);
@@ -445,7 +467,7 @@ void Car::update_points()
         int16_t ground = (int16_t)(ground_probe(v.pos.x.units(), v.pos.y.units()) + v.radius);
         if ((int16_t)(ground - v.pos.z.units_signed()) >= 0) {
             /* below the ground: damp by surface, then collide */
-            int shift = G->surface_damp_shift[G->ground_surface >> 4];
+            int shift = surface_damp_shift[G->ground_surface >> 4];
             if (shift)
                 v.vel -= v.vel >> shift;
             Angle a = fx_atan2(G->ground_slope_x, 0x100);
@@ -497,10 +519,10 @@ void Car::build_hull()
 {
     CarVertex *v = vertices();
     G->hull_plane_bytes = 0;
-    for (int t = 0; t < G->hull_tri_count; t++) {
-        Pos p = v[G->hull_tri[t][0]].pos;
-        Vec3 pq = p - v[G->hull_tri[t][1]].pos;
-        Vec3 pr = p - v[G->hull_tri[t][2]].pos;
+    for (int t = 0; t < (int)(sizeof hull_triangles / sizeof hull_triangles[0]); t++) {
+        Pos p = v[hull_triangles[t][0]].pos;
+        Vec3 pq = p - v[hull_triangles[t][1]].pos;
+        Vec3 pr = p - v[hull_triangles[t][2]].pos;
         int k = hull_planes();
         /* cross product of (p - q) and (p - r) */
         G->hull_normal[k] = { hull_normal_component(pq.y, pr.y, pr.z, pq.z),
@@ -688,7 +710,7 @@ void physics_tick()
         return;
     for (int i = 0; i < G->num_cars; i++) {
         Car &c = car_get(i);
-        c.read_controls(G->car_keys[i]);
+        c.read_controls(car_keys[i]);
         c.update_wheels();
         c.update_springs();
         c.update_points();

@@ -19,7 +19,7 @@
  */
 #include "terep.hpp"
 
-Car cars[10];
+Car cars[MAX_CARS];
 
 namespace {
 

@@ -1,7 +1,33 @@
 /*
  * Table-driven trigonometry, vector length and the 3x3 view rotation.
  */
+#include <array>
+#include <cmath>
 #include "terep.hpp"
+
+/* sin of 0..90 deg in 1024 steps, Q15 (1.0 clamped to 0x7fff) */
+static const std::array<int16_t, 1025> sin_table = [] {
+    std::array<int16_t, 1025> t;
+    const double pi = 3.14159265358979323846;
+    for (int i = 0; i <= 1024; i++) {
+        long v = std::lround(32768.0 * std::sin(i * pi / 2048.0));
+        t[i] = (int16_t)(v > 0x7fff ? 0x7fff : v);
+    }
+    return t;
+}();
+
+/* atan(i / 256), i = 0..256, in binary angle units (0x10000 = 360 deg).
+ * Pi is wrong here so the table is identical to the original one
+ * Claude got very near the right wrong pi, but not quite, bateu na trave
+ * Lets be honest, the errors probably have another origin and not a wrongly typed pi
+ * my guess would be a single precision math library was used*/
+static const std::array<uint16_t, 257> atan_table = [] {
+    std::array<uint16_t, 257> t;
+    const double m = 32768.0 / 3.141688765;
+    for (int i = 0; i <= 256; i++)
+        t[i] = (uint16_t)std::lround(std::atan(i / 256.0) * m);
+    return t;
+}();
 
 /* orig 1000:2aad */
 Q15 fx_sin(Angle a)
@@ -9,7 +35,7 @@ Q15 fx_sin(Angle a)
     uint16_t t = a.bits() & 0x7fff;
     if (t & 0x4000)
         t = 0x8000 - t;                 /* mirror the second quadrant */
-    Q15 v = { G->sin_table[t >> 4] };
+    Q15 v = { sin_table[t >> 4] };
     return (a.bits() & 0x8000) ? -v : v;
 }
 
@@ -21,7 +47,7 @@ Q15 fx_cos(Angle a)
         t -= 0x4000;
     else
         t = 0x4000 - t;
-    Q15 v = { G->sin_table[t >> 4] };
+    Q15 v = { sin_table[t >> 4] };
     uint16_t quadrant = a.bits() >> 14;
     return (quadrant == 1 || quadrant == 2) ? -v : v;
 }
@@ -30,7 +56,7 @@ Q15 fx_cos(Angle a)
 static Angle atan_ratio(uint16_t num, uint16_t den)
 {
     uint16_t q = (uint16_t)(((uint32_t)num << 16) / den);
-    return { (int16_t)G->atan_table[q >> 8] };
+    return { (int16_t)atan_table[q >> 8] };
 }
 
 /* both arguments >= 0, orig 1000:2b2d */

@@ -136,7 +136,7 @@ src/            the game (no OS or library dependencies)
                 Particle, ChaseCam, ProjVertex, PcxHeader...) and prototypes
   fixed.hpp     fixed point: Angle (0x10000 = 360°), Q15 (sine/cosine, matrices), multiplications
   dataseg.def   map of the original data segment, field by field (the source of truth)
-  dataseg_init.cpp  initial contents of the segment (tables, font, names, settings), in code
+  dataseg_init.cpp  initial settings in the segment (cameras, fog, view limits)
   font.pbm      the font (plain PBM, 5x5 glyphs one below the other), embedded with #embed
   dataseg.hpp   struct DataSeg generated from the .def (tools/gen_dataseg.py)
   math.cpp      table-driven sine/cosine, atan2, vector length, rotation matrix
@@ -227,15 +227,16 @@ springs and the model decoded (`model_decode`: one `ModelOp` per instruction, th
 counter becomes an index into that list). The game keeps nothing else of the file. The title bug
 was fixed in `Car::jump`.
 
-The initial contents of the segment, which the original read from `data.bin`, are written by
-`dataseg_init()` (`src/dataseg_init.cpp`): texts and file names as strings, the font read from
-`src/font.pbm` (embedded in the executable with `#embed`), the surface, key and hull tables as
-arrays, the sine and atan tables computed (the atan table with a slightly wrong π, 3.141688765,
-which gives exactly the original's). Only what the port uses is still in the segment: the
-original's scratch variables (kept in locals here), the cars' pool, the scanline tables and the
-DOS version's leftovers are gone, and their offsets are padding. Until then the segment came out
-byte for byte identical to the original, which the old tests compared with the asm (see
-Verification).
+What the original read from `data.bin` is now written by code. The constants live with the code
+that uses them: the texts in `game.cpp`, the file names in `terep.hpp`/`load.cpp`, the font in
+`text.cpp` (read from `src/font.pbm`, embedded in the executable with `#embed`), the surface, key
+and hull tables in `physics.cpp`, the sound patches in `sound.cpp`, the smoke quads in
+`scene.cpp`, and the sine and atan tables computed in `math.cpp` (the atan table with a slightly
+wrong π, 3.141688765, which gives exactly the original's). `dataseg_init()` only sets the
+initial state that is still in the segment. The original's scratch variables (kept in locals
+here), the cars' pool, the scanline tables and the DOS version's leftovers are gone, and their
+offsets are padding. Until then the segment came out byte for byte identical to the original,
+which the old tests compared with the asm (see Verification).
 
 ## Verification
 
@@ -280,7 +281,12 @@ Bugs and quirks of the original that were **kept** (they are commented in the co
 - Projection of the points cut by the near plane uses the fixed centre (160,100), even with the
   screen split.
 - `find_ref_vertex` takes its iteration count from the fractional part of the first vertex's x.
-- The PCX header is barely validated; a sixth car would read its name past the end of the table.
+- The PCX header is barely validated.
+
+Differences that only show with unusual data: at most 5 cars are loaded (the original's name
+tables hold 5, and a sixth car took its name from the bytes after them), and text characters
+>= 128 use the glyph of `c & 0x7f` (the original's offsets wrapped around the data segment; only
+its jump bug put such characters in the title).
 
 Bug of the original that was **fixed**:
 

@@ -147,8 +147,8 @@ static void draw_text(const PictureRect &at, const char *s, int x, int y, uint8_
 
 static void draw_texts(const PictureRect &at)
 {
-    draw_text(at, G->title_text, 10, 10, 15);
-    draw_text(at, G->subtitle_text, 100, 190, 15);
+    draw_text(at, title_text, 10, 10, 15);
+    draw_text(at, subtitle_text, 100, 190, 15);
     if (!extra_options.hide_banner)
         draw_text(at, "GAMBIARRA FOREVER!", 5, 190, (uint8_t)(banner_color >> 2));
     banner_color++;
@@ -415,9 +415,7 @@ static void updateSprites(){
         //110 so they begin visible and not 0 size
         int sz = 110 - s.life;
 
-        auto k = G->smoke_sprite[(uint8_t)s.kind >> 4];
-
-        if(k != 0x5a73){//this will break if we move these things out of the "DS segment"
+        if(smoke_quad_of_kind[(uint8_t)s.kind >> 4] != 0){ // not the smoke puff
             ds->type = RZ_SPRITE_DEBRIS;
             ds->opacity = 1.0f;
             ds->color = s.kind;

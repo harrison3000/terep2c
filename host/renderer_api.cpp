@@ -12,17 +12,17 @@ MapFiles map_files(const std::string &dir)
         abs = abs.parent_path();
     f.dir = ec ? dir : abs.string();
     auto find = [&](const char *name) { return find_file_nocase(f.dir, name); };
-    f.map = find(G->fname_map);
-    f.col = find(G->fname_col);
-    f.maptex = find(G->fname_maptex);
-    f.textures = find(G->fname_textures);
-    f.fog = find(G->fname_fog);
-    f.smoke = find(G->fname_smoke);
-    for (int i = 0; i < G->num_cars && i < 5; i++) {
+    f.map = find(fname_map);
+    f.col = find(fname_col);
+    f.maptex = find(fname_maptex);
+    f.textures = find(fname_textures);
+    f.fog = find(fname_fog);
+    f.smoke = find(fname_smoke);
+    for (int i = 0; i < G->num_cars; i++) {
         MapFiles::Car c;
-        c.dat = find((const char *)ds_ptr(G->car_dat_name[i]));
+        c.dat = find(car_dat_name(i));
         if (car_get(i).texture_seg)
-            c.pcx = find((const char *)ds_ptr(G->car_pcx_name[i]));
+            c.pcx = find(car_pcx_name(i));
         f.cars.push_back(c);
     }
     return f;
