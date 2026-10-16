@@ -222,8 +222,8 @@ static int32_t float_to_i32(double f)
     return (int32_t)lrint(f);
 }
 
-/* Split the impulse between both ends; the high byte of the flags makes
- * the spring act more on one end than the other. */
+/* Split the impulse between both ends; the spring's shift makes it act
+ * more on one end than the other. */
 static void apply_spring(CarVertex &a, CarVertex &b, Vec3 d, int32_t force, int32_t len, int shift)
 {
     int32_t f64 = force << 6;
@@ -255,7 +255,7 @@ static void update_spring(CarVertex &a, CarVertex &b, CarSpring &s)
         return;
     }
 
-    if (s.type() == CarSpring::ELASTIC) {
+    if (s.type == CarSpring::ELASTIC) {
         force = rest - len;
         if (force == 0)
             return;
@@ -264,7 +264,7 @@ static void update_spring(CarVertex &a, CarVertex &b, CarSpring &s)
             force >>= 4;
             s.rest = s.last = (int16_t)(rest - force);
         } else if ((int16_t)force < world.spring_break_squash) {
-            s.flags |= CarSpring::BROKEN;
+            s.type |= CarSpring::BROKEN;
             return;
         }
     } else if (len > s.max_len || len < s.min_len) {
@@ -273,12 +273,12 @@ static void update_spring(CarVertex &a, CarVertex &b, CarSpring &s)
         if (force == 0)
             return;
         s.last = (int16_t)len;
-    } else if (s.type() == CarSpring::LIMITS) {
+    } else if (s.type == CarSpring::LIMITS) {
         return;
     } else {
         /* damper: pull to the rest length and resist the change since the
          * last tick */
-        force = (rest - len) / (int32_t)(s.type() >> 1);
+        force = (rest - len) / (int32_t)(s.type >> 1);
         force += ((int32_t)(uint16_t)s.last - len) >> 1;
         s.last = (int16_t)len;
     }

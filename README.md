@@ -167,9 +167,9 @@ host/
   Nuked-OPL3/   OPL3 emulator (git submodule, LGPL 2.1)
 host_test/      the test host (terep2-headless)
   main.cpp      replays a recording of the Win16 port and compares the frames
-data/           the Asphalt map and data.bin (the original's data segment, only for the oracles)
+data/           the maps (not in the repository)
 tests/          run_tests.sh and the Win16 recordings (one directory each: record.txt, frames)
-tools/          the asm oracle (below), synthetic and face car makers
+tools/          synthetic and face car makers (test maps)
 ```
 
 ### C++ style
@@ -189,7 +189,7 @@ no exceptions, no inheritance):
   (`Angles` with `roll`, `pitch`, `yaw`) and the steering (`Car::steer`). `.raw` gives the raw
   value where the original does arithmetic on it (shifts, 32-bit products).
 - **Methods on the car.** `Car` is the `carN.dat` header with `vertices()`, `springs()` and the
-  physics as methods (`car.update_springs()`, `car.jump(...)`); `CarSpring::type()/softness()`,
+  physics as methods (`car.update_springs()`, `car.jump(...)`); `CarSpring::type`/`softness()`,
   `CarVertex::is_wheel()`, `Particle::ICE_CHIP` etc. The car's model (a small bytecode program)
   is decoded at load time into a list of typed instructions, `ModelOp`, with jump and call
   targets as indices; `draw_car` runs it with a local `Program`.
@@ -244,17 +244,12 @@ which the old tests compared with the asm (see Verification).
 directory per recording in `tests/` (the map is the one of its `#selected path:` line, under
 `data/`), and compares the frames: every frame's hash and a few full frames.
 
-Until the data segment started being split, the tests compared a CRC of the frame buffer and of
-the whole data segment, per frame, with two oracles: the original asm (`tools/asm_oracle`,
-`maincode.asm` assembled with nasm and run in a 16-bit x86 emulator, unicorn, with the DOS
-services emulated: `sh tools/asm_oracle/build.sh ../terep2isolado out/` and then
-`python3 out/run.py`; `dsmask.h` there lists the scratch bytes it leaves out) and the old
-mechanical C++ translation (previous_effort), ~1000x faster, which could swap subsystems for the
-new code one at a time. A 600-frame scenario through every key matched both, 12 random scripts
-of 3000 frames matched previous_effort with g++ and clang++, and the random scripts run against
-the asm matched it except where the original hits the title bug, fixed here (below). That
-setup is in the git history (`tests/ref`, `host_test/car_image.cpp`, `tools/cenario.py`,
-`tools/fuzz_script.py`).
+Before that, while the data segment still had the original layout, the tests compared a CRC of
+the frame buffer and of the whole data segment, per frame, with the original asm (assembled with
+nasm and run in a 16-bit x86 emulator, unicorn) and with an older mechanical C++ translation:
+a 600-frame scenario through every key and a dozen random scripts of 3000 frames matched,
+except where the original hits the title bug, fixed here (below). That setup is in the git
+history (`tools/asm_oracle`, `tests/ref`, `host_test/car_image.cpp`).
 
 Recordings made with the Win16 port are replayed with `terep2-headless -R recdir mapdir`
 (`-C` instead of `-R` only compares, writing nothing). `recdir/record.txt` has one call per line,
@@ -329,7 +324,7 @@ Crash of the original that the port **does not reproduce** (left as it is):
 
 Difference between the Win16 port and `previous_effort`: the spring length (`sqrt`) is rounded
 (CVTSS2SI) in the binary, while previous_effort truncated it. That is why it drifted from the
-original after a few hundred frames; the oracle in `tools/oracle` already has the fix.
+original after a few hundred frames.
 
 ## Not done
 

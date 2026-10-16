@@ -207,11 +207,12 @@ struct CarSpring {
     uint16_t a, b;                  /* vertex indices */
     int16_t  rest;                  /* rest length (<0: take the current length) */
     int16_t  last;                  /* length on the previous tick */
-    uint16_t flags;                 /* low byte: type, bit 7: broken; high byte: softness shift */
+    uint8_t  type;                  /* LIMITS, ELASTIC, or a damper (rest pull / (type >> 1));
+                                     * | BROKEN (then always a damper) */
+    uint8_t  shift;                 /* the impulse >> shift + 1 goes to vertex a, the rest to b */
     uint16_t min_len, max_len;
 
-    uint8_t type() const { return (uint8_t)flags; }
-    int softness() const { return (uint8_t)((flags >> 8) + 1) & 31; }
+    int softness() const { return (uint8_t)(shift + 1) & 31; }
 };
 
 struct Hull;                        /* collision planes (physics.cpp) */

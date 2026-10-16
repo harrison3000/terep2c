@@ -5,24 +5,15 @@
 /build/
 *.exe
 
-# Oracle outputs (tools/build_oracle.sh, tools/asm_oracle/build.sh)
-tools/asm_oracle/out/
-main.bin
-main.map
-maincode_int.asm
-
 host/gl_renderer/*.a
 
 # Frame dumps and scratch output
 *.ppm
-*.crc.new
 /*.tar.gz
 
-# Original game data (data.bin and the Asphalt track) belong to the demo's author
+# Original game data (the maps) belong to the demo's author
 /data/
 
-#TODO pegar esse oracle do outro repo
-/tools/oracle
 /docs/*.png
 /docs/*.gif
 !/docs/alta_resolucao.gif

@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """Copy a track, giving car 1 a synthetic model that uses every opcode of
 the model bytecode (the demo's cars only use FLAT, FACING, SORT2, TEXTURED,
-WHEEL and PIXEL).  Used by tests/run_tests.sh.
+WHEEL and PIXEL), to make a test map (data/Asphalt-synth).
 
     python3 tools/synth_model.py [--no-shaded-tab] SRC_TRACK DST_TRACK
 
 The synthetic program is built around car 1's own model (called with
 CALL) and its polygons, so the result is derived from the track's files
 and is not stored in the repository.  --no-shaded-tab leaves out
-OP_SHADED_TAB, whose shade table lookup was fixed in the port (to compare
-with builds from before the fix).
+OP_SHADED_TAB.
 """
 import os, shutil, struct, sys
 

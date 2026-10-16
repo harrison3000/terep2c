@@ -49,7 +49,9 @@ CarSpring read_spring(const Reader &r, size_t at)
     s.b = r.u16(at + 2);
     s.rest = r.i16(at + 4);
     s.last = r.i16(at + 6);
-    s.flags = r.u16(at + 8);
+    uint16_t flags = r.u16(at + 8);     /* low byte: type, high byte: shift */
+    s.type = (uint8_t)flags;
+    s.shift = (uint8_t)(flags >> 8);
     s.min_len = r.u16(at + 10);
     s.max_len = r.u16(at + 12);
     return s;
