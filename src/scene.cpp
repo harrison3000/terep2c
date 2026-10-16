@@ -28,11 +28,11 @@ static const std::array<SpriteQuad, 4> smoke_quads = [] {
     for (int k = 0; k < 4; k++) {
         SpriteQuad &q = quads[k];
         q.size = 0x0a00;
-        uint32_t v0 = (uint32_t)(0x1000 * k + 0x80) << 16, v1 = v0 + (0xb00u << 16);
-        q.uv[0] = v0 | 0xf380;
-        q.uv[1] = v0 | 0xfe80;
-        q.uv[2] = v1 | 0xfe80;
-        q.uv[3] = v1 | 0xf380;
+        uint16_t v0 = (uint16_t)(0x1000 * k + 0x80), v1 = (uint16_t)(v0 + 0xb00);
+        q.uv[0] = { 0xf380, v0 };
+        q.uv[1] = { 0xfe80, v0 };
+        q.uv[2] = { 0xfe80, v1 };
+        q.uv[3] = { 0xf380, v1 };
     }
     return quads;
 }();
@@ -231,13 +231,13 @@ struct CellQuad {
 
 /* Texture coordinates of a corner: the cell colour picks a 16x16 tile of
  * maptex.pcx (low nibble: column, high nibble: row). */
-static uint32_t tile_uv(uint8_t color, bool dx, bool dy)
+static TexCoord tile_uv(uint8_t color, bool dx, bool dy)
 {
     uint16_t u = (uint16_t)(((color & 0x0f) << 12) | 0x80);
     uint16_t v = (uint16_t)(((color & 0xf0) << 8) | 0x80);
     if (dx) u = (uint16_t)(u | 0x0f00);
     if (dy) v = (uint16_t)(v | 0x0f00);
-    return (uint32_t)v << 16 | u;
+    return { u, v };
 }
 
 /* Facing test of the triangle just built.  The grid is seen from above,
@@ -272,15 +272,15 @@ static void draw_cell(const CellQuad &q, uint8_t color)
     if (dist >= render.fog_start) {
         uint8_t c = fog_row((uint8_t)(dist >> 8))[color];
         uint16_t color = (uint16_t)(c << 8 | c);
-        poly_begin(q.d1, 0);
-        poly_add(q.d0, 0);
-        poly_add(q.s0, 0);
-        if (cell_visible(q, poly_end(q.d1, 0)))
+        poly_begin(q.d1, {});
+        poly_add(q.d0, {});
+        poly_add(q.s0, {});
+        if (cell_visible(q, poly_end(q.d1, {})))
             draw_flat(color);
-        poly_begin(q.d1, 0);
-        poly_add(q.s0, 0);
-        poly_add(q.s1, 0);
-        if (cell_visible(q, poly_end(q.d1, 0))) {
+        poly_begin(q.d1, {});
+        poly_add(q.s0, {});
+        poly_add(q.s1, {});
+        if (cell_visible(q, poly_end(q.d1, {}))) {
             if (color & 0x0f)
                 color -= 0x101;
             draw_flat(color);
@@ -290,10 +290,10 @@ static void draw_cell(const CellQuad &q, uint8_t color)
 
     /* corner offsets in map x/y: mirrored when traversing by columns */
     bool sw = q.swap_xy;
-    uint32_t uv_d0 = tile_uv(color, false, false);
-    uint32_t uv_d1 = tile_uv(color, !sw, sw);
-    uint32_t uv_s0 = tile_uv(color, sw, !sw);
-    uint32_t uv_s1 = tile_uv(color, true, true);
+    TexCoord uv_d0 = tile_uv(color, false, false);
+    TexCoord uv_d1 = tile_uv(color, !sw, sw);
+    TexCoord uv_s0 = tile_uv(color, sw, !sw);
+    TexCoord uv_s1 = tile_uv(color, true, true);
 
     const uint8_t *tex = segments.maptex.data();
     poly_begin(q.d1, uv_d1);
@@ -447,14 +447,14 @@ void draw_terrain()
 void draw_sprite(int16_t sx, int16_t sy, int16_t depth, const SpriteQuad &q, const uint8_t *tex)
 {
     int16_t h = screen_clamp(q.size * render_scale / depth);
-    const uint32_t *uv = q.uv;
+    const TexCoord *uv = q.uv;
     PolyVertex *o = render.poly_buf[0].v;
     static const int8_t corner[4][2] = { { -1, -1 }, { 1, -1 }, { 1, 1 }, { -1, 1 } };
     for (int i = 0; i < 4; i++) {
         o[i].sx = (int16_t)(sx + corner[i][0] * h);
         o[i].sy = (int16_t)(sy + corner[i][1] * h);
-        o[i].a = (uint16_t)uv[i];
-        o[i].b = (uint16_t)(uv[i] >> 16);
+        o[i].a = uv[i].u;
+        o[i].b = uv[i].v;
     }
     render.poly_buf[0].count = 4;
     draw_textured(tex);

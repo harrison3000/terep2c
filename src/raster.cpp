@@ -403,28 +403,28 @@ bool poly_backfacing()
  * full-screen centre here even in split screen.  Far above or below the eye
  * the projection overflows 16 bits: the original crashes there, this port
  * wraps around (see project). */
-static void near_point(int16_t x, int16_t z, uint32_t attr)
+static void near_point(int16_t x, int16_t z, VertexAttr attr)
 {
     PolyVertex &o = render.poly_buf[0].v[render.near_prev.count++];
     int16_t sx, sy;
     project(x, render.near_clip, z, &sx, &sy);
     o.sx = (int16_t)(screen_clamp(sx * render_scale) + 160 * render_scale);
     o.sy = (int16_t)(100 * render_scale - screen_clamp(sy * render_scale));
-    o.a = (uint16_t)attr;
-    o.b = (uint16_t)(attr >> 16);
+    o.a = attr.a;
+    o.b = attr.b;
 }
 
-static void emit_projected(const ProjVertex &p, uint32_t attr)
+static void emit_projected(const ProjVertex &p, VertexAttr attr)
 {
     PolyVertex &o = render.poly_buf[0].v[render.near_prev.count++];
     o.sx = p.sx;
     o.sy = p.sy;
-    o.a = (uint16_t)attr;
-    o.b = (uint16_t)(attr >> 16);
+    o.a = attr.a;
+    o.b = attr.b;
 }
 
-/* First point of a polygon.  attr is (b << 16 | a).  orig 1000:46a0 */
-void poly_begin(const ProjVertex &p, uint32_t attr)
+/* First point of a polygon.  orig 1000:46a0 */
+void poly_begin(const ProjVertex &p, VertexAttr attr)
 {
     render.near_prev.count = 0;
     render.near_prev.dist = (int16_t)(p.y - render.near_clip);
@@ -437,7 +437,7 @@ void poly_begin(const ProjVertex &p, uint32_t attr)
 /* Next point.  Where the outline crosses the near plane a point on the
  * plane is inserted; it takes the attribute of the current point.
  * orig 1000:46d3 */
-void poly_add(const ProjVertex &p, uint32_t attr)
+void poly_add(const ProjVertex &p, VertexAttr attr)
 {
     int16_t d = (int16_t)(p.y - render.near_clip);
     if (render.near_prev.dist >= 0) {
@@ -456,7 +456,7 @@ void poly_add(const ProjVertex &p, uint32_t attr)
 
 /* Closing point (normally the first one again): only the crossing is
  * added.  Sets the vertex count; returns it.  orig 1000:47ec */
-uint16_t poly_end(const ProjVertex &p, uint32_t attr)
+uint16_t poly_end(const ProjVertex &p, VertexAttr attr)
 {
     int16_t d = (int16_t)(p.y - render.near_clip);
     if (render.near_prev.dist >= 0) {

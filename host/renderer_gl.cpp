@@ -40,11 +40,11 @@
         vv * scale;        \
     })
 
-    #define F_UV(u, v, _raw) ({ \
-        uint32_t uraw = (_raw); \
+    #define F_UV(_u, _v, _uv) ({ \
+        TexCoord uv_ = (_uv); \
         float scale = 1.0f / 65535.0f;      \
-        u = (float)(uraw & 0xFFFF) * scale; \
-        v = (float)(uraw >> 16   ) * scale; \
+        _u = (float)uv_.u * scale; \
+        _v = (float)uv_.v * scale; \
     })
 
     extern int broke_some_ice;
@@ -329,7 +329,7 @@ static void loadCar(int i, std::string cpcx){
 
             for(int i =0; i < n;i++){
                 auto v = pts[i];
-                uint32_t attr = v.attr;
+                TexCoord attr = { v.attr.a, v.attr.b };
                 
                 vtx[i].index = v.point >> 1;
                 F_UV(vtx[i].u, vtx[i].v, attr);                

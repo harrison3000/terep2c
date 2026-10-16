@@ -98,6 +98,20 @@ struct ProjVertex {          /* a point transformed to camera space */
     int16_t sx, sy;                 /* screen position, valid when y >= near_clip */
 };
 
+/* A texture coordinate, 8.8 texels of a 256-wide texture (in the files, u
+ * then v, read by the original as one dword). */
+struct TexCoord {
+    uint16_t u, v;
+};
+
+/* The attributes of a polygon vertex: a shade (8.8 colour), or u and v. */
+struct VertexAttr {
+    uint16_t a = 0, b = 0;
+    VertexAttr() = default;
+    VertexAttr(uint16_t shade) : a(shade) {}
+    VertexAttr(TexCoord t) : a(t.u), b(t.v) {}
+};
+
 struct PolyVertex {          /* polygon vertex fed to the rasterisers */
     int16_t  sx, sy;
     uint16_t a, b;                  /* attributes: u/v (texture) or shade */
@@ -125,7 +139,7 @@ struct PointBuf {
 
 struct SpriteQuad {          /* camera-facing textured square (smoke; model opcode 9) */
     int16_t  size;                  /* half the side, before dividing by the depth */
-    uint32_t uv[4];                 /* corner texture coordinates, v << 16 | u */
+    TexCoord uv[4];                 /* corner texture coordinates */
 };
 
 struct PACKED PcxHeader {
@@ -158,11 +172,11 @@ enum ModelOpcode : uint8_t;         /* the opcodes (car_draw.cpp) */
 struct ModelOp {
     struct Vertex {                 /* a polygon corner */
         uint16_t point;             /* index into render.car_proj */
-        uint32_t attr;              /* shade, car_uv_table index or v << 16 | u */
+        VertexAttr attr;            /* shade, shade_tab index (in a) or u, v */
     };
     struct WheelView {              /* one of the nine wheel sprites */
         int16_t  w0, w1;            /* half-axes */
-        uint32_t uv[4];
+        TexCoord uv[4];
     };
 
     ModelOpcode op;
@@ -443,9 +457,9 @@ void     clear_screen();
 void     put_pixel(int16_t x, int16_t y, uint8_t color);
 void     put_block(int16_t x, int16_t y, uint8_t color);    /* render_scale x render_scale pixels */
 int16_t  edge_lerp(int16_t da, int16_t va, int16_t db, int16_t vb);
-void     poly_begin(const ProjVertex &p, uint32_t attr);
-void     poly_add(const ProjVertex &p, uint32_t attr);
-uint16_t poly_end(const ProjVertex &p, uint32_t attr);
+void     poly_begin(const ProjVertex &p, VertexAttr attr);
+void     poly_add(const ProjVertex &p, VertexAttr attr);
+uint16_t poly_end(const ProjVertex &p, VertexAttr attr);
 bool     poly_backfacing();
 void     draw_flat(uint16_t color);      /* two bytes: a dither pattern, >= 0xf0f0 translucent */
 void     draw_shaded();
