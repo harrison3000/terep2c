@@ -27,6 +27,7 @@
 
     carrodef_s carros[5];
     int currTgt = 0;
+    int camMode = 0;
 
     static void updateCars();
     static int isLine(uint16_t[], int);
@@ -172,19 +173,33 @@ static void game_keys()
         #endif
         break;
     }
-    case 63:{ //F5: overview
-        #ifdef TEREP2_GLR
-        if(currTgt == -1){
-            auto c = carros[world.player_car[0]];
-            rzSetCameraTarget(ctx, c.id, c.camera_pt);
-            currTgt = c.id;
-        }else{
-            rzSetCameraTarget(ctx, -1, -1);
-            currTgt = -1;
-        }
-        #endif
+    #ifdef TEREP2_GLR
+    case 59:{ //F1: internal
+        rzSetCamera(ctx, RZ_CAMERA_INTERNAL);
+        camMode = 1;
         break;
     }
+    case 60:{ //F2: internal2
+        rzSetCamera(ctx, RZ_CAMERA_INTERNAL);
+        camMode = 2;
+        break;
+    }
+    case 61:{ //F3: freeze pos
+        rzSetCamera(ctx, RZ_CAMERA_FOLLOW_FREEZE);
+        camMode = 0;
+        break;
+    }
+    case 62:{ //F4: normal
+        rzSetCamera(ctx, RZ_CAMERA_FOLLOW);
+        camMode = 0;
+        break;
+    }
+    case 63:{ //F5: overview
+        rzSetCamera(ctx, RZ_CAMERA_OVERVIEW);
+        camMode = 0;
+        break;
+    }
+    #endif
     case 0x1a:                              // [ and ]: gravity
         world.gravity += 50;
         break;
@@ -245,7 +260,6 @@ static void updateCars(){
 
         int n = carros[ci].n_points;
         auto car = car_get(ci);
-        carros[ci].camera_pt = car.ref_index;
 
         RzVertex ptrs[n];
 
@@ -279,6 +293,7 @@ static void loadCar(int i, std::string cpcx){
     int idCar;
     rzCreateObject(ctx, carros[i].n_points, &idCar);
     carros[i].id = idCar;
+    carros[i].camera_pt = car.ref_index;
 
     if(cpcx != ""){
         rzLoadObjectTexture(ctx, idCar, cpcx.c_str());
