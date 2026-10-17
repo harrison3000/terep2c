@@ -27,7 +27,7 @@
 
     carrodef_s carros[5];
     int currTgt = 0;
-    int camMode = 0;
+    int internalCamMode = 0;
 
     static void updateCars();
     static int isLine(uint16_t[], int);
@@ -46,6 +46,16 @@
         float scale = 1.0f / 65535.0f;      \
         _u = (float)uv_.u * scale; \
         _v = (float)uv_.v * scale; \
+    })
+
+    #define F_RZVEC3(_v3, sc)({           \
+        float scale = sc / 65535.0f;\
+        RzVertex ret = { \
+            .x = (float)_v3.x * scale, \
+            .y = (float)_v3.y * scale, \
+            .z = (float)_v3.z * scale, \
+        };   \
+        ret; \
     })
 
     extern int broke_some_ice;
@@ -176,27 +186,27 @@ static void game_keys()
     #ifdef TEREP2_GLR
     case 59:{ //F1: internal
         rzSetCamera(ctx, RZ_CAMERA_INTERNAL);
-        camMode = 1;
+        internalCamMode = 1;
         break;
     }
     case 60:{ //F2: internal2
         rzSetCamera(ctx, RZ_CAMERA_INTERNAL);
-        camMode = 2;
+        internalCamMode = 2;
         break;
     }
     case 61:{ //F3: freeze pos
         rzSetCamera(ctx, RZ_CAMERA_FOLLOW_FREEZE);
-        camMode = 0;
+        internalCamMode = 0;
         break;
     }
     case 62:{ //F4: normal
         rzSetCamera(ctx, RZ_CAMERA_FOLLOW);
-        camMode = 0;
+        internalCamMode = 0;
         break;
     }
     case 63:{ //F5: overview
         rzSetCamera(ctx, RZ_CAMERA_OVERVIEW);
-        camMode = 0;
+        internalCamMode = 0;
         break;
     }
     #endif
@@ -227,6 +237,19 @@ bool opengl_frame(int win_w, int win_h, PictureRect *where)
         updateCars();
         updateSprites();
         updateCamDists();
+        if(internalCamMode){
+            //TODO implement/improve camera mode 2
+            auto car = car_get(currTgt);
+
+            auto x = car.axis_x();
+            auto y = car.axis_y();
+
+            auto f = F_RZVEC3(y, -1.0f);
+            auto r = F_RZVEC3(x, 1.0f);
+
+            rzSetCameraInternalAxes(ctx, &f, &r);
+        }
+
         rzRender(ctx);
         use_host();
     #endif
